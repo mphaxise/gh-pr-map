@@ -1,0 +1,5 @@
+node_modules/
+.geocache.json
+output/
+*.env
+.env

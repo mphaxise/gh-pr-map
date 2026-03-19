@@ -1,0 +1,13 @@
+{
+  "name": "gh-pr-map",
+  "version": "1.0.0",
+  "description": "Visualize where GitHub PR contributors are located on an interactive map",
+  "main": "map_prs.js",
+  "scripts": {
+    "start": "node map_prs.js"
+  },
+  "keywords": ["github", "pull-requests", "map", "visualization", "contributors"],
+  "author": "Praneet Koppula",
+  "license": "MIT",
+  "dependencies": {}
+}
