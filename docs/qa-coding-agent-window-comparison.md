@@ -5,32 +5,32 @@
 | Date | 2026-03-19 |
 | URL | `/Users/praneet/gh-pr-map/output/coding-agent-window-2025-vs-2026-with-late-2025.html` |
 | Branch | `codex/stats-sidebar-slice` |
-| Commit | working tree after `978c2bb` |
+| Commit | working tree |
 | Mode | Quick |
 | Scope | Static HTML smoke test for the three-window coding-agent comparison page |
 | Duration | ~10 minutes |
 | Pages visited | 1 |
 | Screenshots | 0 |
 
-## Health Score: 95/100
+## Health Score: 96/100
 
 | Category | Score |
 | --- | --- |
 | Console | 90 |
 | Functional | 95 |
-| Visual | 92 |
-| UX | 94 |
+| Visual | 95 |
+| UX | 96 |
 | Accessibility | 90 |
 
 ## Top 3 Things To Fix
 
-1. Break vendor attribution down by repo, not just overall and by window.
-2. Separate bot-opened PRs from PR-body attribution signals more explicitly.
-3. Add a small explanation near the vendor table about why `Claude` dominates the visible signal in this sample.
+1. Break PR-body attribution down by repo and vendor together.
+2. Add a small explanation near the vendor table about why `Claude` dominates the PR-body signal in this sample.
+3. Surface login-attributed examples separately so the weaker signal is even easier to inspect.
 
 ## Issues
 
-### ISSUE-001: Vendor mix is still hidden at the repo level
+### ISSUE-001: Repo-by-vendor attribution is still missing
 
 | Field | Value |
 | --- | --- |
@@ -38,38 +38,38 @@
 | Category | content |
 | URL | `/Users/praneet/gh-pr-map/output/coding-agent-window-2025-vs-2026-with-late-2025.html` |
 
-Description: The page now shows overall vendor totals and vendor-by-window counts, which is a clear improvement, but it still does not show which repos are driving the `Claude`-heavy visible attribution pattern. That means the next natural reader question still requires opening the JSON.
+Description: The page now cleanly separates bot-opened PRs, explicit PR-body attribution, and login-attributed PRs. It also shows PR-body vendor totals, but it still does not show which repos are driving the `Claude`-heavy body-attribution pattern. That means the next natural reader question still requires opening the JSON.
 
 Repro steps:
 
 1. Open the generated comparison HTML page.
-2. Review `Agent attribution by vendor` and `Vendor signals by window`.
+2. Review `PR-body attribution by vendor` and `PR-body vendor signals by window`.
 3. Observe: the page explains vendor totals, but not which repos contribute most to each vendor.
 
 Evidence:
 
-- browser notes: Safari DOM verification confirmed the vendor bars and vendor-window table rendered as expected
+- browser notes: Safari DOM verification confirmed the body-vendor bars and vendor-window table rendered as expected
 - runtime notes: no load or rendering errors observed during smoke test
 
-### ISSUE-002: Bot and attribution provenance are still combined at the summary level
+### ISSUE-002: Login-attributed examples are present but not isolated into their own view
 
 | Field | Value |
 | --- | --- |
 | Severity | low |
-| Category | ux |
+| Category | content |
 | URL | `/Users/praneet/gh-pr-map/output/coding-agent-window-2025-vs-2026-with-late-2025.html` |
 
-Description: The summary cards still compress `bot-authored` and `agent-attributed` into adjacent topline numbers. The page explains the caveat, but a faster visual split between bot-opened PRs and body-attributed PRs would make the provenance story easier to scan.
+Description: The page now exposes login-attributed counts and includes source columns in the examples table, which is much cleaner. A dedicated login-attributed slice or filter would still make it faster to inspect the weaker attribution cases without reading across the larger mixed examples table.
 
 Repro steps:
 
 1. Open the generated comparison HTML page.
-2. Review the hero cards and the vendor sections.
-3. Observe: the page shows both metrics, but does not visually separate authorship provenance modes.
+2. Review `Login-attributed share by window` and `Visible attribution examples`.
+3. Observe: login-attributed evidence is present, but still embedded in the broader examples table.
 
 Evidence:
 
-- browser notes: DOM check returned the expected hero cards, vendor bars, and visible PR rows
+- browser notes: DOM check returned the expected hero cards, split-share headings, and visible attribution rows
 - runtime notes: no blocking issue, but the explanatory depth is still limited
 
 ### ISSUE-003: The page could narrate the `Claude` spike more directly
@@ -80,21 +80,21 @@ Evidence:
 | Category | content |
 | URL | `/Users/praneet/gh-pr-map/output/coding-agent-window-2025-vs-2026-with-late-2025.html` |
 
-Description: The updated page clearly shows `Claude` as the dominant visible attribution vendor, but the narrative sections do not yet spell out that the big visible-attribution jump from late-2025 to early-2026 is mostly a `Claude` story in this sample.
+Description: The updated page clearly shows `Claude` as the dominant PR-body attribution vendor, but the narrative sections do not yet spell out that the jump from the old combined attribution bucket to the cleaner body-only view also shrinks `OpenHands` materially.
 
 Repro steps:
 
 1. Open the generated comparison HTML page.
-2. Read the hero, vendor bars, and `What this page is good for`.
-3. Observe: the numbers are present, but the main narrative does not yet name the vendor shift directly.
+2. Read the hero, `PR-body attribution by vendor`, and `What this page is good for`.
+3. Observe: the numbers are present, but the main narrative does not yet name the body-vs-login distinction directly.
 
 Evidence:
 
-- browser notes: Safari DOM check showed the new vendor sections correctly
+- browser notes: Safari DOM check showed the split summary cards and new body-vendor sections correctly
 - runtime notes: this is a framing refinement, not a functional bug
 
 ## Blind Spots
 
 - No automated console capture was available from the local static-file run; browser verification used Safari DOM inspection.
 - QA covered the generated HTML artifact, not an interactive hosted flow.
-- The smoke pass did not review every PR row in the large tables; it validated headings, cards, and representative rendered rows.
+- The smoke pass did not review every PR row in the large tables; it validated headings, cards, and representative rendered rows, including one explicit body-attribution example.
