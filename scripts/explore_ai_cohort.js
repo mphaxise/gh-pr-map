@@ -443,6 +443,13 @@ function countByLabel(items, getLabel) {
   });
 }
 
+function countSignalLabels(rows) {
+  return countByLabel(
+    rows.flatMap(row => row.agentSignals.map(label => ({ label }))),
+    item => item.label
+  );
+}
+
 function topLocationRows(humanContributorRows) {
   const deduped = new Map();
 
@@ -986,6 +993,7 @@ function renderWindowComparisonHtml(comparison) {
   const firstWindow = comparison.windows[0] || null;
   const lastWindow = comparison.windows[comparison.windows.length - 1] || null;
   const anchor = comparison.anchorComparison;
+  const activeVendors = comparison.activeVendors || [];
   const latestLeader = lastWindow && lastWindow.topRepo
     ? `${lastWindow.topRepo.repo} (${formatCount(lastWindow.topRepo.totalPrs)} PRs)`
     : 'No repo activity in sampled windows';
@@ -997,6 +1005,11 @@ function renderWindowComparisonHtml(comparison) {
       firstWindow ? [`${firstWindow.label} agent share`] : [],
       lastWindow ? [`${lastWindow.label} agent share`] : []
     );
+  const repoThroughputHeaders = ['Repo'].concat(
+    comparison.windows.map(window => `${window.label} PRs/day`)
+  );
+  const vendorWindowHeaders = ['Window', 'Agent-attributed PRs']
+    .concat(activeVendors.map(label => `${label} PRs`));
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1345,6 +1358,18 @@ function renderWindowComparisonHtml(comparison) {
             ...(lastWindow ? [`${row.windowStats[row.windowStats.length - 1].agentSharePct}%`] : []),
           ])
         )}
+        <p class="footnote">Raw totals answer which repos were busiest in each window. Use the per-day table below when comparing the longer late-2025 window against the equal-length early windows.</p>
+      </section>
+
+      <section class="panel span-12">
+        <h2>Repo PRs/day comparison</h2>
+        ${renderTable(
+          repoThroughputHeaders,
+          comparison.repoComparisons.map(row => [
+            `<a href="${escapeHtml(row.htmlUrl)}" target="_blank" rel="noreferrer">${escapeHtml(row.repo)}</a>`,
+            ...row.windowStats.map(stat => formatRate(stat.prPerDay)),
+          ])
+        )}
       </section>
 
       <section class="panel span-6">
@@ -1367,6 +1392,35 @@ function renderWindowComparisonHtml(comparison) {
           getValue: row => row.agentSignalPrs,
           formatValue: value => formatCount(value),
         })}
+      </section>
+
+      <section class="panel span-6">
+        <h2>Agent attribution by vendor</h2>
+        ${comparison.vendorTotals.length
+          ? renderBars(comparison.vendorTotals, {
+              getLabel: row => row.label,
+              getValue: row => row.count,
+              formatValue: value => formatCount(value),
+            })
+          : '<p class="panel-empty">No vendor-level agent attribution was detected in the sampled windows.</p>'}
+      </section>
+
+      <section class="panel span-6">
+        <h2>Vendor signals by window</h2>
+        ${activeVendors.length
+          ? renderTable(
+              vendorWindowHeaders,
+              comparison.windows.map(window => [
+                escapeHtml(window.label),
+                formatCount(window.agentSignalPrs),
+                ...activeVendors.map(label => {
+                  const vendor = window.vendorTotals.find(item => item.label === label);
+                  return formatCount(vendor ? vendor.count : 0);
+                }),
+              ])
+            )
+          : '<p class="panel-empty">No vendor-level agent attribution was detected in the sampled windows.</p>'}
+        <p class="footnote">A single PR can contribute to more than one vendor label if its visible attribution mentions multiple tools.</p>
       </section>
 
       <section class="panel span-12">
@@ -1537,6 +1591,7 @@ function buildWindowComparison({ cohort, limitPerRepo, repoMetaByName, windowRep
         : label,
     }));
     allRepoRows.push(...rows);
+    const agentRows = rows.filter(row => row.agentSignalPr);
 
     return {
       label,
@@ -1560,6 +1615,7 @@ function buildWindowComparison({ cohort, limitPerRepo, repoMetaByName, windowRep
       agentSharePct: report.summary.totalPrs
         ? Math.round((report.summary.agentSignalPrs / report.summary.totalPrs) * 100)
         : 0,
+      vendorTotals: countSignalLabels(agentRows),
       topRepo: repoSummaries[0] || null,
       repoSummaries,
     };
@@ -1624,6 +1680,10 @@ function buildWindowComparison({ cohort, limitPerRepo, repoMetaByName, windowRep
     }
     return left.repo.localeCompare(right.repo);
   });
+  const vendorTotals = countSignalLabels(allRepoRows.filter(row => row.agentSignalPr));
+  const activeVendors = AGENT_KEYWORDS
+    .map(keyword => keyword.label)
+    .filter(label => vendorTotals.some(item => item.label === label));
 
   return {
     type: 'windowComparison',
@@ -1639,6 +1699,8 @@ function buildWindowComparison({ cohort, limitPerRepo, repoMetaByName, windowRep
     },
     repoComparisons,
     repoAgentTotals,
+    activeVendors,
+    vendorTotals,
     botAuthors: countByLabel(
       allRepoRows.filter(row => row.botAuthor),
       row => row.authorLogin
