@@ -1,5 +1,6 @@
 node_modules/
 .geocache.json
+.profilecache.json
 output/
 *.env
 .env
