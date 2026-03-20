@@ -112,4 +112,7 @@ See [BRAINSTORM.md](BRAINSTORM.md) for potential next features.
 - [docs/product-strategy.md](docs/product-strategy.md)
 - [docs/implementation-strategy.md](docs/implementation-strategy.md)
 - [docs/mvp-plan.md](docs/mvp-plan.md)
-- [docs/public-ai-authorship-prior-art-report.md](docs/public-ai-authorship-prior-art-report.md)
+
+## Experiment Variations
+
+- [docs/experiment-variation-public-ai-authorship-prior-art.md](docs/experiment-variation-public-ai-authorship-prior-art.md)

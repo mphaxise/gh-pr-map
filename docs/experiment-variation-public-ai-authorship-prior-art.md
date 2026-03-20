@@ -1,6 +1,8 @@
-# Public AI Authorship Prior Art Report
+# Experiment Variation: Public AI Authorship Prior Art Report
 
 Prepared on `2026-03-20` for the GHPR exploration.
+
+This document is one experiment variation inside the broader repo. It is intentionally framed as a side investigation into public AI-authorship signals and prior work, not as the repo's single product direction.
 
 ## Question
 
