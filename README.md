@@ -93,6 +93,7 @@ This exploration mode is optimized for:
 - fixed date-window comparisons
 - bot-authored PR detection
 - visible agent-attributed PR signals
+- vendor-level attribution breakdowns from visible PR metadata
 - tables and simple charts instead of map output
 
 ## Notes

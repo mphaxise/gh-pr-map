@@ -86,3 +86,22 @@
 1. Generate a three-window coding-agent comparison artifact.
 2. Verify the page in a browser and run a quick QA smoke pass.
 3. Rewrite the working hypothesis around PR volume, bot share, and visible agent-attributed share over time.
+
+## 2026-03-19 - Vendor Breakdown And Normalized Throughput
+
+### User Direction
+
+- Continue the exploration without broadening the scope.
+- Go deeper on the current coding-agent cohort rather than adding a control group yet.
+
+### Resulting Decisions
+
+- Add vendor-level signal summaries on top of the existing three-window artifact.
+- Surface repo `PRs/day` explicitly so the longer late-2025 window is easier to compare.
+- Keep the cohort, windows, and attribution heuristic unchanged.
+
+### Immediate Execution Plan
+
+1. Add vendor summaries and per-day repo comparison to the report.
+2. Regenerate the live HTML and JSON artifacts.
+3. Re-verify the updated page in Safari and refresh the written hypothesis.
