@@ -35,8 +35,14 @@ test('classifyPullRequest marks bot authors and agent signal keywords separately
 
   assert.equal(botPr.botAuthor, true);
   assert.equal(botPr.agentSignalPr, false);
+  assert.equal(botPr.bodyAttributedPr, false);
+  assert.equal(botPr.loginAttributedPr, false);
   assert.deepEqual(agentPr.agentSignals.sort(), ['codex', 'openhands']);
+  assert.deepEqual(agentPr.bodyAgentSignals.sort(), ['codex', 'openhands']);
+  assert.deepEqual(agentPr.loginAgentSignals, ['openhands']);
   assert.equal(agentPr.botAuthor, false);
+  assert.equal(agentPr.bodyAttributedPr, true);
+  assert.equal(agentPr.loginAttributedPr, true);
   assert.equal(agentPr.agentSignalPr, true);
 });
 
@@ -72,6 +78,11 @@ test('buildReport produces repo summaries and top locations', () => {
         authorLogin: 'openhands-runner',
         authorType: 'User',
         botAuthor: false,
+        bodyAttributedPr: false,
+        loginAttributedPr: true,
+        attributionSources: ['login'],
+        bodyAgentSignals: [],
+        loginAgentSignals: ['openhands'],
         agentSignalPr: true,
         agentSignals: ['openhands'],
       },
@@ -85,6 +96,11 @@ test('buildReport produces repo summaries and top locations', () => {
         authorLogin: 'alice',
         authorType: 'User',
         botAuthor: false,
+        bodyAttributedPr: false,
+        loginAttributedPr: false,
+        attributionSources: [],
+        bodyAgentSignals: [],
+        loginAgentSignals: [],
         agentSignalPr: false,
         agentSignals: [],
       },
@@ -98,6 +114,11 @@ test('buildReport produces repo summaries and top locations', () => {
         authorLogin: 'dependabot[bot]',
         authorType: 'Bot',
         botAuthor: true,
+        bodyAttributedPr: false,
+        loginAttributedPr: false,
+        attributionSources: [],
+        bodyAgentSignals: [],
+        loginAgentSignals: [],
         agentSignalPr: false,
         agentSignals: [],
       },
@@ -128,6 +149,8 @@ test('buildReport produces repo summaries and top locations', () => {
   assert.equal(report.summary.uniqueAuthors, 3);
   assert.equal(report.summary.humanPrs, 2);
   assert.equal(report.summary.botPrs, 1);
+  assert.equal(report.summary.bodyAttributedPrs, 0);
+  assert.equal(report.summary.loginAttributedPrs, 1);
   assert.equal(report.summary.agentSignalPrs, 1);
   assert.equal(report.summary.humanAuthors, 2);
   assert.equal(report.summary.bayAreaAuthors, 1);
@@ -160,6 +183,11 @@ test('renderHtml includes core exploration sections', () => {
         authorLogin: 'openhands-runner',
         authorType: 'User',
         botAuthor: false,
+        bodyAttributedPr: false,
+        loginAttributedPr: true,
+        attributionSources: ['login'],
+        bodyAgentSignals: [],
+        loginAgentSignals: ['openhands'],
         agentSignalPr: true,
         agentSignals: ['openhands'],
       },
@@ -230,6 +258,11 @@ test('buildWindowComparison summarizes cross-window deltas without location sect
         authorLogin: 'openhands-runner',
         authorType: 'User',
         botAuthor: false,
+        bodyAttributedPr: false,
+        loginAttributedPr: true,
+        attributionSources: ['login'],
+        bodyAgentSignals: [],
+        loginAgentSignals: ['openhands'],
         agentSignalPr: true,
         agentSignals: ['openhands'],
       },
@@ -243,6 +276,11 @@ test('buildWindowComparison summarizes cross-window deltas without location sect
         authorLogin: 'dependabot[bot]',
         authorType: 'Bot',
         botAuthor: true,
+        bodyAttributedPr: false,
+        loginAttributedPr: false,
+        attributionSources: [],
+        bodyAgentSignals: [],
+        loginAgentSignals: [],
         agentSignalPr: false,
         agentSignals: [],
       },
@@ -266,6 +304,11 @@ test('buildWindowComparison summarizes cross-window deltas without location sect
         authorLogin: 'openhands-runner',
         authorType: 'User',
         botAuthor: false,
+        bodyAttributedPr: true,
+        loginAttributedPr: true,
+        attributionSources: ['body', 'login'],
+        bodyAgentSignals: ['openhands'],
+        loginAgentSignals: ['openhands'],
         agentSignalPr: true,
         agentSignals: ['openhands'],
       },
@@ -279,6 +322,11 @@ test('buildWindowComparison summarizes cross-window deltas without location sect
         authorLogin: 'github-actions[bot]',
         authorType: 'Bot',
         botAuthor: true,
+        bodyAttributedPr: false,
+        loginAttributedPr: false,
+        attributionSources: [],
+        bodyAgentSignals: [],
+        loginAgentSignals: [],
         agentSignalPr: false,
         agentSignals: [],
       },
@@ -292,6 +340,11 @@ test('buildWindowComparison summarizes cross-window deltas without location sect
         authorLogin: 'alice',
         authorType: 'User',
         botAuthor: false,
+        bodyAttributedPr: true,
+        loginAttributedPr: false,
+        attributionSources: ['body'],
+        bodyAgentSignals: ['claude', 'openhands'],
+        loginAgentSignals: [],
         agentSignalPr: true,
         agentSignals: ['claude', 'openhands'],
       },
@@ -312,27 +365,33 @@ test('buildWindowComparison summarizes cross-window deltas without location sect
   assert.equal(comparison.type, 'windowComparison');
   assert.equal(comparison.summary.totalPrs, 5);
   assert.equal(comparison.summary.botPrs, 2);
+  assert.equal(comparison.summary.bodyAttributedPrs, 2);
+  assert.equal(comparison.summary.loginAttributedPrs, 2);
   assert.equal(comparison.summary.agentSignalPrs, 3);
   assert.equal(comparison.windows[0].dayCount, 74);
   assert.equal(comparison.windows[1].totalPrs, 3);
   assert.equal(comparison.anchorComparison.totalPrDelta, 1);
+  assert.equal(comparison.anchorComparison.bodyShareDeltaPct, 67);
   assert.equal(comparison.repoComparisons[0].windowStats.length, 2);
   assert.deepEqual(comparison.activeVendors, ['claude', 'openhands']);
-  assert.deepEqual(comparison.vendorTotals, [
-    { label: 'openhands', count: 3 },
+  assert.deepEqual(comparison.bodyVendorTotals, [
+    { label: 'openhands', count: 2 },
     { label: 'claude', count: 1 },
   ]);
-  assert.deepEqual(comparison.windows[1].vendorTotals, [
+  assert.deepEqual(comparison.windows[1].bodyVendorTotals, [
     { label: 'openhands', count: 2 },
     { label: 'claude', count: 1 },
   ]);
 
   const html = renderHtml(comparison);
   assert.match(html, /Busiest public coding-agent repos across three windows/);
-  assert.match(html, /Bot share by window/);
+  assert.match(html, /Bot-opened share by window/);
+  assert.match(html, /PR-body share by window/);
+  assert.match(html, /Login-attributed share by window/);
   assert.match(html, /Repo PRs\/day comparison/);
-  assert.match(html, /Agent attribution by vendor/);
-  assert.match(html, /Vendor signals by window/);
+  assert.match(html, /PR-body attribution by vendor/);
+  assert.match(html, /PR-body vendor signals by window/);
+  assert.match(html, /Visible attribution examples/);
   assert.doesNotMatch(html, /Location coverage by repo/);
 });
 
