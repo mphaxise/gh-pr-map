@@ -5,6 +5,8 @@
   "main": "map_prs.js",
   "scripts": {
     "start": "node map_prs.js",
+    "explore:cohort": "node scripts/explore_ai_cohort.js",
+    "explore:agent-windows": "node scripts/explore_ai_cohort.js --limit-per-repo 0 --skip-profiles --window early-2025,2025-01-01,2025-03-15 --window late-2025,2025-09-15,2025-12-31 --window early-2026,2026-01-01,2026-03-15 --repos anthropics/claude-code,OpenHands/OpenHands,cline/cline,Aider-AI/aider,continuedev/continue --out-json output/coding-agent-window-2025-vs-2026-with-late-2025.json --out-html output/coding-agent-window-2025-vs-2026-with-late-2025.html",
     "test": "node --test"
   },
   "keywords": ["github", "pull-requests", "map", "visualization", "contributors"],
