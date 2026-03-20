@@ -71,6 +71,30 @@ Each marker popup shows:
 npm test
 ```
 
+## Exploration Scripts
+
+The repo also includes a discovery-first cohort explorer for PR activity analysis before committing to a bigger product slice.
+
+```bash
+# Generic cohort explorer
+npm run explore:cohort -- --help
+
+# Current coding-agent window comparison
+npm run explore:agent-windows
+```
+
+The current comparison artifact writes:
+
+- `output/coding-agent-window-2025-vs-2026-with-late-2025.json`
+- `output/coding-agent-window-2025-vs-2026-with-late-2025.html`
+
+This exploration mode is optimized for:
+
+- fixed date-window comparisons
+- bot-authored PR detection
+- visible agent-attributed PR signals
+- tables and simple charts instead of map output
+
 ## Notes
 
 - Only uses publicly visible GitHub profile data
