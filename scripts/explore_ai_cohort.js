@@ -266,30 +266,62 @@ function isBotAuthor(user) {
   return type === 'bot' || /\[bot\]$/.test(login);
 }
 
-function extractAgentSignals(pr) {
-  const login = cleanText(pr.user && pr.user.login);
-  const text = [
-    cleanText(pr.title),
-    cleanText(pr.body),
-  ].join('\n');
+function uniqueLabels(...lists) {
+  return Array.from(new Set(lists.flat().filter(Boolean)));
+}
 
-  return AGENT_KEYWORDS
-    .filter(keyword => keyword.loginPattern.test(login) || keyword.textPattern.test(text))
+function extractAgentSignalSources(pr) {
+  const login = cleanText(pr.user && pr.user.login);
+  const body = cleanText(pr.body);
+
+  const loginSignals = AGENT_KEYWORDS
+    .filter(keyword => keyword.loginPattern.test(login))
     .map(keyword => keyword.label);
+  const bodySignals = AGENT_KEYWORDS
+    .filter(keyword => keyword.textPattern.test(body))
+    .map(keyword => keyword.label);
+
+  return {
+    loginSignals,
+    bodySignals,
+    agentSignals: uniqueLabels(loginSignals, bodySignals),
+  };
+}
+
+function extractAgentSignals(pr) {
+  return extractAgentSignalSources(pr).agentSignals;
 }
 
 function classifyPullRequest(pr) {
   const login = cleanText(pr.user && pr.user.login);
   const botAuthor = isBotAuthor(pr.user);
-  const agentSignals = extractAgentSignals(pr);
+  const {
+    loginSignals,
+    bodySignals,
+    agentSignals,
+  } = extractAgentSignalSources(pr);
   const automationSignals = AUTOMATION_LOGIN_HINTS.filter(hint => login.toLowerCase() === hint);
+  const attributionSources = [];
+
+  if (bodySignals.length) {
+    attributionSources.push('body');
+  }
+
+  if (loginSignals.length) {
+    attributionSources.push('login');
+  }
 
   return {
     authorLogin: login,
     authorType: cleanText(pr.user && pr.user.type) || 'Unknown',
     botAuthor,
     automationSignals,
+    bodyAgentSignals: bodySignals,
+    loginAgentSignals: loginSignals,
     agentSignals,
+    attributionSources,
+    bodyAttributedPr: bodySignals.length > 0,
+    loginAttributedPr: loginSignals.length > 0,
     agentSignalPr: agentSignals.length > 0,
   };
 }
@@ -443,9 +475,9 @@ function countByLabel(items, getLabel) {
   });
 }
 
-function countSignalLabels(rows) {
+function countSignalLabels(rows, getLabels = row => row.agentSignals || []) {
   return countByLabel(
-    rows.flatMap(row => row.agentSignals.map(label => ({ label }))),
+    rows.flatMap(row => getLabels(row).map(label => ({ label }))),
     item => item.label
   );
 }
@@ -1002,13 +1034,13 @@ function renderWindowComparisonHtml(comparison) {
     .concat(comparison.windows.map(window => `${window.label} PRs`))
     .concat(
       firstWindow && lastWindow ? [`${firstWindow.label} -> ${lastWindow.label}`] : [],
-      firstWindow ? [`${firstWindow.label} agent share`] : [],
-      lastWindow ? [`${lastWindow.label} agent share`] : []
+      firstWindow ? [`${firstWindow.label} body share`] : [],
+      lastWindow ? [`${lastWindow.label} body share`] : []
     );
   const repoThroughputHeaders = ['Repo'].concat(
     comparison.windows.map(window => `${window.label} PRs/day`)
   );
-  const vendorWindowHeaders = ['Window', 'Agent-attributed PRs']
+  const vendorWindowHeaders = ['Window', 'PR-body attributed PRs']
     .concat(activeVendors.map(label => `${label} PRs`));
 
   return `<!DOCTYPE html>
@@ -1265,12 +1297,12 @@ function renderWindowComparisonHtml(comparison) {
     <section class="hero">
       <p class="eyebrow">GHPR Exploration</p>
       <h1>Busiest public coding-agent repos across three windows</h1>
-      <p>This sample compares the same public coding-agent cohort across ${formatCount(comparison.windows.length)} fixed windows. The goal is to see how total PR volume, visible bot activity, and visible agent-attributed PRs changed from early 2025 into early 2026 without relying on location data.</p>
+      <p>This sample compares the same public coding-agent cohort across ${formatCount(comparison.windows.length)} fixed windows. The goal is to see how total PR volume, bot-opened PRs, and explicit PR-body attribution changed from early 2025 into early 2026 without relying on location data.</p>
       <div class="cards">
         <article class="card">
           <div class="card-label">Total Window PRs</div>
           <div class="card-value">${formatCount(comparison.summary.totalPrs)}</div>
-          <p>${formatCount(comparison.summary.botPrs)} bot-authored and ${formatCount(comparison.summary.agentSignalPrs)} visibly agent-attributed</p>
+          <p>${formatCount(comparison.summary.botPrs)} bot-opened, ${formatCount(comparison.summary.bodyAttributedPrs)} PR-body attributed, ${formatCount(comparison.summary.loginAttributedPrs)} login-attributed</p>
         </article>
         <article class="card">
           <div class="card-label">Unique Authors</div>
@@ -1280,7 +1312,7 @@ function renderWindowComparisonHtml(comparison) {
         <article class="card">
           <div class="card-label">Early Window Delta</div>
           <div class="card-value">${anchor ? `${anchor.totalPrDelta >= 0 ? '+' : ''}${formatCount(anchor.totalPrDelta)}` : '—'}</div>
-          <p>${anchor ? `${firstWindow.label} to ${lastWindow.label}: ${anchor.totalPrDeltaPct >= 0 ? '+' : ''}${anchor.totalPrDeltaPct}% total PR change` : 'No matched early-window delta available'}</p>
+          <p>${anchor ? `${firstWindow.label} to ${lastWindow.label}: ${anchor.totalPrDeltaPct >= 0 ? '+' : ''}${anchor.totalPrDeltaPct}% PR change, ${anchor.bodyShareDeltaPct >= 0 ? '+' : ''}${anchor.bodyShareDeltaPct} body-share points` : 'No matched early-window delta available'}</p>
         </article>
         <article class="card">
           <div class="card-label">Latest Window Leader</div>
@@ -1293,17 +1325,17 @@ function renderWindowComparisonHtml(comparison) {
           <div class="card-label">${escapeHtml(window.label)}</div>
           <div class="card-value">${formatCount(window.totalPrs)}</div>
           <p>${formatRate(window.prPerDay)} PRs/day across ${window.dayCount ? `${formatCount(window.dayCount)} days` : 'the sampled range'}</p>
-          <p>${window.botSharePct}% bot share, ${window.agentSharePct}% agent-attributed share</p>
+          <p>${window.botSharePct}% bot-opened, ${window.bodySharePct}% PR-body attributed, ${window.loginSharePct}% login-attributed</p>
         </article>`).join('\n')}
       </div>
-      <p class="footnote">Caveat: <code>agent-attributed</code> means visible provenance hints in author login, title, or PR body. It is safer than claiming a PR was fully AI-written.</p>
+      <p class="footnote">Caveat: <code>PR-body attributed</code> means explicit provenance text in the PR body. <code>login-attributed</code> means the author login matched an agent keyword and is a weaker signal.</p>
     </section>
 
     <div class="grid">
       <section class="panel span-12">
         <h2>Window snapshots</h2>
         ${renderTable(
-          ['Window', 'Dates', 'Days', 'PRs', 'PRs/day', 'Unique authors', 'Bot PRs', 'Agent-attributed PRs', 'Busiest repo'],
+          ['Window', 'Dates', 'Days', 'PRs', 'PRs/day', 'Unique authors', 'Bot-opened PRs', 'PR-body attributed', 'Login-attributed', 'Busiest repo'],
           comparison.windows.map(window => [
             escapeHtml(window.label),
             escapeHtml(window.dateRangeLabel),
@@ -1312,7 +1344,8 @@ function renderWindowComparisonHtml(comparison) {
             formatRate(window.prPerDay),
             formatCount(window.uniqueAuthors),
             `${formatCount(window.botPrs)} (${window.botSharePct}%)`,
-            `${formatCount(window.agentSignalPrs)} (${window.agentSharePct}%)`,
+            `${formatCount(window.bodyAttributedPrs)} (${window.bodySharePct}%)`,
+            `${formatCount(window.loginAttributedPrs)} (${window.loginSharePct}%)`,
             escapeHtml(window.topRepo ? `${window.topRepo.repo} (${formatCount(window.topRepo.totalPrs)})` : '—'),
           ])
         )}
@@ -1328,8 +1361,8 @@ function renderWindowComparisonHtml(comparison) {
         })}
       </section>`).join('\n')}
 
-      <section class="panel span-6">
-        <h2>Bot share by window</h2>
+      <section class="panel span-4">
+        <h2>Bot-opened share by window</h2>
         ${renderBars(comparison.windows, {
           getLabel: row => row.label,
           getValue: row => row.botSharePct,
@@ -1337,11 +1370,20 @@ function renderWindowComparisonHtml(comparison) {
         })}
       </section>
 
-      <section class="panel span-6">
-        <h2>Agent-attributed share by window</h2>
+      <section class="panel span-4">
+        <h2>PR-body share by window</h2>
         ${renderBars(comparison.windows, {
           getLabel: row => row.label,
-          getValue: row => row.agentSharePct,
+          getValue: row => row.bodySharePct,
+          formatValue: value => `${value}%`,
+        })}
+      </section>
+
+      <section class="panel span-4">
+        <h2>Login-attributed share by window</h2>
+        ${renderBars(comparison.windows, {
+          getLabel: row => row.label,
+          getValue: row => row.loginSharePct,
           formatValue: value => `${value}%`,
         })}
       </section>
@@ -1354,8 +1396,8 @@ function renderWindowComparisonHtml(comparison) {
             `<a href="${escapeHtml(row.htmlUrl)}" target="_blank" rel="noreferrer">${escapeHtml(row.repo)}</a>`,
             ...row.windowStats.map(stat => formatCount(stat.totalPrs)),
             ...(firstWindow && lastWindow ? [`${row.anchorPrDelta >= 0 ? '+' : ''}${formatCount(row.anchorPrDelta)} (${row.anchorPrDeltaPct >= 0 ? '+' : ''}${row.anchorPrDeltaPct}%)`] : []),
-            ...(firstWindow ? [`${row.windowStats[0].agentSharePct}%`] : []),
-            ...(lastWindow ? [`${row.windowStats[row.windowStats.length - 1].agentSharePct}%`] : []),
+            ...(firstWindow ? [`${row.windowStats[0].bodySharePct}%`] : []),
+            ...(lastWindow ? [`${row.windowStats[row.windowStats.length - 1].bodySharePct}%`] : []),
           ])
         )}
         <p class="footnote">Raw totals answer which repos were busiest in each window. Use the per-day table below when comparing the longer late-2025 window against the equal-length early windows.</p>
@@ -1382,67 +1424,69 @@ function renderWindowComparisonHtml(comparison) {
                 formatCount(row.count),
               ])
             )
-          : '<p class="panel-empty">No bot-authored PRs were detected in these windows.</p>'}
+          : '<p class="panel-empty">No bot-opened PRs were detected in these windows.</p>'}
       </section>
 
       <section class="panel span-6">
-        <h2>Top repos by visible agent attribution</h2>
-        ${renderBars(comparison.repoAgentTotals, {
+        <h2>Top repos by PR-body attribution</h2>
+        ${renderBars(comparison.repoBodyTotals, {
           getLabel: row => row.repo,
-          getValue: row => row.agentSignalPrs,
+          getValue: row => row.bodyAttributedPrs,
           formatValue: value => formatCount(value),
         })}
       </section>
 
       <section class="panel span-6">
-        <h2>Agent attribution by vendor</h2>
-        ${comparison.vendorTotals.length
-          ? renderBars(comparison.vendorTotals, {
+        <h2>PR-body attribution by vendor</h2>
+        ${comparison.bodyVendorTotals.length
+          ? renderBars(comparison.bodyVendorTotals, {
               getLabel: row => row.label,
               getValue: row => row.count,
               formatValue: value => formatCount(value),
             })
-          : '<p class="panel-empty">No vendor-level agent attribution was detected in the sampled windows.</p>'}
+          : '<p class="panel-empty">No vendor-level PR-body attribution was detected in the sampled windows.</p>'}
       </section>
 
       <section class="panel span-6">
-        <h2>Vendor signals by window</h2>
+        <h2>PR-body vendor signals by window</h2>
         ${activeVendors.length
           ? renderTable(
               vendorWindowHeaders,
               comparison.windows.map(window => [
                 escapeHtml(window.label),
-                formatCount(window.agentSignalPrs),
+                formatCount(window.bodyAttributedPrs),
                 ...activeVendors.map(label => {
-                  const vendor = window.vendorTotals.find(item => item.label === label);
+                  const vendor = window.bodyVendorTotals.find(item => item.label === label);
                   return formatCount(vendor ? vendor.count : 0);
                 }),
               ])
             )
-          : '<p class="panel-empty">No vendor-level agent attribution was detected in the sampled windows.</p>'}
-        <p class="footnote">A single PR can contribute to more than one vendor label if its visible attribution mentions multiple tools.</p>
+          : '<p class="panel-empty">No vendor-level PR-body attribution was detected in the sampled windows.</p>'}
+        <p class="footnote">A single PR can contribute to more than one vendor label if its PR body explicitly mentions multiple tools.</p>
       </section>
 
       <section class="panel span-12">
-        <h2>Visible agent-attributed PRs</h2>
+        <h2>Visible attribution examples</h2>
         ${comparison.agentSignalPrs.length
           ? renderTable(
-              ['Window', 'Repo', 'PR', 'Author', 'Signals', 'Created'],
+              ['Window', 'Repo', 'PR', 'Author', 'Sources', 'Body signals', 'Login signals', 'Created'],
               comparison.agentSignalPrs.slice(0, 25).map(row => [
                 escapeHtml(row.windowLabel),
                 escapeHtml(row.repo),
                 `<a href="${escapeHtml(row.htmlUrl)}" target="_blank" rel="noreferrer">${escapeHtml(`#${row.number} ${row.title}`)}</a>`,
                 escapeHtml(row.authorLogin),
-                escapeHtml(row.agentSignals.join(', ')),
+                escapeHtml(row.attributionSources.join(', ') || '—'),
+                escapeHtml(row.bodyAgentSignals.join(', ') || '—'),
+                escapeHtml(row.loginAgentSignals.join(', ') || '—'),
                 escapeHtml(row.createdAt.slice(0, 10)),
               ])
             )
-          : '<p class="panel-empty">No explicit agent-attributed PRs were detected in the sampled windows.</p>'}
+          : '<p class="panel-empty">No explicit attribution signals were detected in the sampled windows.</p>'}
       </section>
 
       <section class="panel span-12">
         <h2>What this page is good for</h2>
-        <p>Use this comparison to test whether coding-agent repos got busier, more bot-heavy, or more explicitly agent-attributed over time. The equal-length early-2025 and early-2026 windows are the clean year-over-year anchor; late 2025 is a bridge window that helps show whether the change was gradual or sudden.</p>
+        <p>Use this comparison to test whether coding-agent repos got busier, more bot-opened, or more explicitly attributed in PR bodies over time. The equal-length early-2025 and early-2026 windows are the clean year-over-year anchor; late 2025 is a bridge window that helps show whether the change was gradual or sudden.</p>
         <p class="footnote">Generated ${escapeHtml(comparison.generatedAt)} from ${escapeHtml(comparison.cohort.join(', '))}.</p>
       </section>
     </div>
@@ -1463,6 +1507,8 @@ function buildReport({ cohort, limitPerRepo, dateWindow, repoMetaByName, repoRow
   const totalPrs = repoRows.length;
   const botPrs = repoRows.filter(row => row.botAuthor).length;
   const humanPrs = repoRows.filter(row => !row.botAuthor).length;
+  const bodyAttributedPrs = repoRows.filter(row => row.bodyAttributedPr).length;
+  const loginAttributedPrs = repoRows.filter(row => row.loginAttributedPr).length;
   const agentSignalPrs = repoRows.filter(row => row.agentSignalPr).length;
   const authorMap = new Map();
   const humanAuthorMap = new Map();
@@ -1504,6 +1550,8 @@ function buildReport({ cohort, limitPerRepo, dateWindow, repoMetaByName, repoRow
       uniqueAuthors,
       humanPrs: rows.filter(row => !row.botAuthor).length,
       botPrs: rows.filter(row => row.botAuthor).length,
+      bodyAttributedPrs: rows.filter(row => row.bodyAttributedPr).length,
+      loginAttributedPrs: rows.filter(row => row.loginAttributedPr).length,
       agentSignalPrs: rows.filter(row => row.agentSignalPr).length,
       humanAuthors: humanAuthors.size,
       humanAuthorsWithLocation: humansWithLocation.size,
@@ -1546,6 +1594,8 @@ function buildReport({ cohort, limitPerRepo, dateWindow, repoMetaByName, repoRow
       uniqueAuthors,
       humanPrs,
       botPrs,
+      bodyAttributedPrs,
+      loginAttributedPrs,
       agentSignalPrs,
       humanAuthors,
       humanAuthorsWithLocation,
@@ -1573,6 +1623,12 @@ function buildWindowComparison({ cohort, limitPerRepo, repoMetaByName, windowRep
       botSharePct: summary.totalPrs
         ? Math.round((summary.botPrs / summary.totalPrs) * 100)
         : 0,
+      bodySharePct: summary.totalPrs
+        ? Math.round((summary.bodyAttributedPrs / summary.totalPrs) * 100)
+        : 0,
+      loginSharePct: summary.totalPrs
+        ? Math.round((summary.loginAttributedPrs / summary.totalPrs) * 100)
+        : 0,
       agentSharePct: summary.totalPrs
         ? Math.round((summary.agentSignalPrs / summary.totalPrs) * 100)
         : 0,
@@ -1591,7 +1647,7 @@ function buildWindowComparison({ cohort, limitPerRepo, repoMetaByName, windowRep
         : label,
     }));
     allRepoRows.push(...rows);
-    const agentRows = rows.filter(row => row.agentSignalPr);
+    const bodyRows = rows.filter(row => row.bodyAttributedPr);
 
     return {
       label,
@@ -1605,6 +1661,8 @@ function buildWindowComparison({ cohort, limitPerRepo, repoMetaByName, windowRep
       uniqueAuthors: report.summary.uniqueAuthors,
       humanPrs: report.summary.humanPrs,
       botPrs: report.summary.botPrs,
+      bodyAttributedPrs: report.summary.bodyAttributedPrs,
+      loginAttributedPrs: report.summary.loginAttributedPrs,
       agentSignalPrs: report.summary.agentSignalPrs,
       prPerDay: report.dateWindow && report.dateWindow.dayCount
         ? Number((report.summary.totalPrs / report.dateWindow.dayCount).toFixed(1))
@@ -1612,10 +1670,16 @@ function buildWindowComparison({ cohort, limitPerRepo, repoMetaByName, windowRep
       botSharePct: report.summary.totalPrs
         ? Math.round((report.summary.botPrs / report.summary.totalPrs) * 100)
         : 0,
+      bodySharePct: report.summary.totalPrs
+        ? Math.round((report.summary.bodyAttributedPrs / report.summary.totalPrs) * 100)
+        : 0,
+      loginSharePct: report.summary.totalPrs
+        ? Math.round((report.summary.loginAttributedPrs / report.summary.totalPrs) * 100)
+        : 0,
       agentSharePct: report.summary.totalPrs
         ? Math.round((report.summary.agentSignalPrs / report.summary.totalPrs) * 100)
         : 0,
-      vendorTotals: countSignalLabels(agentRows),
+      bodyVendorTotals: countSignalLabels(bodyRows, row => row.bodyAgentSignals),
       topRepo: repoSummaries[0] || null,
       repoSummaries,
     };
@@ -1637,9 +1701,13 @@ function buildWindowComparison({ cohort, limitPerRepo, repoMetaByName, windowRep
         uniqueAuthors: 0,
         humanPrs: 0,
         botPrs: 0,
+        bodyAttributedPrs: 0,
+        loginAttributedPrs: 0,
         agentSignalPrs: 0,
         prPerDay: 0,
         botSharePct: 0,
+        bodySharePct: 0,
+        loginSharePct: 0,
         agentSharePct: 0,
         stars: repoMeta.stars || 0,
         forks: repoMeta.forks || 0,
@@ -1671,19 +1739,22 @@ function buildWindowComparison({ cohort, limitPerRepo, repoMetaByName, windowRep
     return left.repo.localeCompare(right.repo);
   });
 
-  const repoAgentTotals = repoComparisons.map(row => ({
+  const repoBodyTotals = repoComparisons.map(row => ({
     repo: row.repo,
-    agentSignalPrs: row.windowStats.reduce((sum, stat) => sum + stat.agentSignalPrs, 0),
+    bodyAttributedPrs: row.windowStats.reduce((sum, stat) => sum + stat.bodyAttributedPrs, 0),
   })).sort((left, right) => {
-    if (right.agentSignalPrs !== left.agentSignalPrs) {
-      return right.agentSignalPrs - left.agentSignalPrs;
+    if (right.bodyAttributedPrs !== left.bodyAttributedPrs) {
+      return right.bodyAttributedPrs - left.bodyAttributedPrs;
     }
     return left.repo.localeCompare(right.repo);
   });
-  const vendorTotals = countSignalLabels(allRepoRows.filter(row => row.agentSignalPr));
+  const bodyVendorTotals = countSignalLabels(
+    allRepoRows.filter(row => row.bodyAttributedPr),
+    row => row.bodyAgentSignals
+  );
   const activeVendors = AGENT_KEYWORDS
     .map(keyword => keyword.label)
-    .filter(label => vendorTotals.some(item => item.label === label));
+    .filter(label => bodyVendorTotals.some(item => item.label === label));
 
   return {
     type: 'windowComparison',
@@ -1695,12 +1766,14 @@ function buildWindowComparison({ cohort, limitPerRepo, repoMetaByName, windowRep
       totalPrs: allRepoRows.length,
       uniqueAuthors: new Set(allRepoRows.map(row => row.authorLogin)).size,
       botPrs: allRepoRows.filter(row => row.botAuthor).length,
+      bodyAttributedPrs: allRepoRows.filter(row => row.bodyAttributedPr).length,
+      loginAttributedPrs: allRepoRows.filter(row => row.loginAttributedPr).length,
       agentSignalPrs: allRepoRows.filter(row => row.agentSignalPr).length,
     },
     repoComparisons,
-    repoAgentTotals,
+    repoBodyTotals,
     activeVendors,
-    vendorTotals,
+    bodyVendorTotals,
     botAuthors: countByLabel(
       allRepoRows.filter(row => row.botAuthor),
       row => row.authorLogin
@@ -1716,7 +1789,8 @@ function buildWindowComparison({ cohort, limitPerRepo, repoMetaByName, windowRep
           totalPrDeltaPct: firstWindow.totalPrs
             ? Math.round(((lastWindow.totalPrs - firstWindow.totalPrs) / firstWindow.totalPrs) * 100)
             : 0,
-          agentShareDeltaPct: lastWindow.agentSharePct - firstWindow.agentSharePct,
+          bodyShareDeltaPct: lastWindow.bodySharePct - firstWindow.bodySharePct,
+          loginShareDeltaPct: lastWindow.loginSharePct - firstWindow.loginSharePct,
           botShareDeltaPct: lastWindow.botSharePct - firstWindow.botSharePct,
         }
       : null,
@@ -1750,6 +1824,11 @@ async function exploreCohort({ repos, limitPerRepo, token, dateWindow, fetchProf
         authorLogin: classification.authorLogin,
         authorType: classification.authorType,
         botAuthor: classification.botAuthor,
+        bodyAttributedPr: classification.bodyAttributedPr,
+        loginAttributedPr: classification.loginAttributedPr,
+        attributionSources: classification.attributionSources,
+        bodyAgentSignals: classification.bodyAgentSignals,
+        loginAgentSignals: classification.loginAgentSignals,
         agentSignalPr: classification.agentSignalPr,
         agentSignals: classification.agentSignals,
       };
@@ -1848,8 +1927,9 @@ async function main() {
   console.log(`Saved HTML to ${parsed.outHtml}`);
   console.log(`${formatCount(report.summary.totalPrs)} PRs across ${formatCount(report.cohort.length)} repos`);
   if (report.type === 'windowComparison') {
-    console.log(`${formatCount(report.summary.botPrs)} bot-authored PRs across ${formatCount(report.windows.length)} windows`);
-    console.log(`${formatCount(report.summary.agentSignalPrs)} PRs had visible agent attribution`);
+    console.log(`${formatCount(report.summary.botPrs)} bot-opened PRs across ${formatCount(report.windows.length)} windows`);
+    console.log(`${formatCount(report.summary.bodyAttributedPrs)} PRs had explicit body attribution`);
+    console.log(`${formatCount(report.summary.loginAttributedPrs)} PRs had login-based attribution`);
   } else {
     console.log(`${formatCount(report.summary.humanAuthorsWithLocation)} of ${formatCount(report.summary.humanAuthors)} human authors publish a location`);
     console.log(`${formatCount(report.summary.agentSignalPrs)} PRs had visible agent signals`);
