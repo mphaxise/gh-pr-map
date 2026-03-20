@@ -1,8 +1,8 @@
 # gh-pr-map
 
-> Visualize where GitHub pull request contributors are located — plot them on an interactive world map.
+> Visualize where GitHub pull request contributors are located with a static geography report and interactive world map.
 
-Given any GitHub repo, this tool fetches PR authors, reads their optional profile location, geocodes it via OpenStreetMap, and renders a self-contained interactive Leaflet HTML map.
+Given any GitHub repo, this tool fetches PR authors, reads their optional profile location, geocodes it via OpenStreetMap, and renders a self-contained Leaflet HTML report with an interactive map, summary cards, and contributor roster.
 
 ## Quick Start
 
@@ -36,23 +36,40 @@ GitHub API → PRs → Unique Authors → Profile Locations → Geocode (Nominat
 2. **Deduplicate** by contributor login
 3. **Read profile** location field (free-text, e.g. "San Francisco, CA")
 4. **Geocode** using Nominatim (OpenStreetMap) — 1 req/sec, no API key needed
-5. **Cache** results in `.geocache.json` so re-runs are instant
-6. **Render** a dark-themed, interactive HTML map with contributor cards on click
+5. **Cache** results in `.geocache.json` so re-runs are fast and old entries can be enriched over time
+6. **Render** a self-contained HTML report with:
+   - summary cards for PRs, contributors, mapped contributors, and countries
+   - top-country and top-location rollups
+   - a clickable contributor roster that focuses markers on the map
+   - clear empty states for repos with no PRs or no mappable contributors
 
 ## Output
 
 A single `output/map.html` file — open directly in any browser, no server needed.
 
-Each marker shows:
+Each report includes:
+- summary cards for repo coverage
+- top countries and top locations
+- contributor roster sorted by PR count
+- map markers with popups
+
+Each marker popup shows:
 - GitHub avatar
 - Username (links to GitHub profile)
-- Location string
+- PR count
+- Geocoded location string
 
 ## Requirements
 
 - Node.js v16+
 - Internet (GitHub API + Nominatim)
 - Optional: `GITHUB_TOKEN` env var for higher API rate limits
+
+## Testing
+
+```bash
+npm test
+```
 
 ## Notes
 
@@ -63,3 +80,10 @@ Each marker shows:
 ## Ideas / Extensions
 
 See [BRAINSTORM.md](BRAINSTORM.md) for potential next features.
+
+## Strategy Docs
+
+- [docs/idea-strategy.md](docs/idea-strategy.md)
+- [docs/product-strategy.md](docs/product-strategy.md)
+- [docs/implementation-strategy.md](docs/implementation-strategy.md)
+- [docs/mvp-plan.md](docs/mvp-plan.md)

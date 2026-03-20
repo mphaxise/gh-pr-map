@@ -4,7 +4,8 @@
   "description": "Visualize where GitHub PR contributors are located on an interactive map",
   "main": "map_prs.js",
   "scripts": {
-    "start": "node map_prs.js"
+    "start": "node map_prs.js",
+    "test": "node --test"
   },
   "keywords": ["github", "pull-requests", "map", "visualization", "contributors"],
   "author": "Praneet Koppula",
