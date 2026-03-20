@@ -286,14 +286,14 @@ test('buildWindowComparison summarizes cross-window deltas without location sect
         repo: 'cline/cline',
         number: 5,
         title: 'Claude-assisted change',
-        body: 'Generated with Claude Code',
+        body: 'Generated with Claude Code using OpenHands',
         htmlUrl: 'https://example.com/5',
         createdAt: '2026-03-01T00:00:00Z',
         authorLogin: 'alice',
         authorType: 'User',
         botAuthor: false,
         agentSignalPr: true,
-        agentSignals: ['claude'],
+        agentSignals: ['claude', 'openhands'],
       },
     ],
     humanContributorRows: [],
@@ -317,10 +317,22 @@ test('buildWindowComparison summarizes cross-window deltas without location sect
   assert.equal(comparison.windows[1].totalPrs, 3);
   assert.equal(comparison.anchorComparison.totalPrDelta, 1);
   assert.equal(comparison.repoComparisons[0].windowStats.length, 2);
+  assert.deepEqual(comparison.activeVendors, ['claude', 'openhands']);
+  assert.deepEqual(comparison.vendorTotals, [
+    { label: 'openhands', count: 3 },
+    { label: 'claude', count: 1 },
+  ]);
+  assert.deepEqual(comparison.windows[1].vendorTotals, [
+    { label: 'openhands', count: 2 },
+    { label: 'claude', count: 1 },
+  ]);
 
   const html = renderHtml(comparison);
   assert.match(html, /Busiest public coding-agent repos across three windows/);
   assert.match(html, /Bot share by window/);
+  assert.match(html, /Repo PRs\/day comparison/);
+  assert.match(html, /Agent attribution by vendor/);
+  assert.match(html, /Vendor signals by window/);
   assert.doesNotMatch(html, /Location coverage by repo/);
 });
 
