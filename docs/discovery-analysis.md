@@ -88,6 +88,10 @@ Equal-window takeaway:
 - early-2026 had `834` more PRs than early-2025, a `43%` increase
 - bot share moved from `8%` to `10%`
 - visible agent-attributed share moved from `2%` to `10%`
+- repo throughput also shifted:
+  - `cline/cline` moved from `5.6` PRs/day in early-2025 to `13.1` PRs/day in early-2026
+  - `OpenHands/OpenHands` stayed consistently high at `11.7` and `12.2` PRs/day in the equal-length early windows
+  - `anthropics/claude-code` jumped from `0.2` to `5.2` PRs/day
 
 Repo-level pattern:
 
@@ -95,6 +99,20 @@ Repo-level pattern:
 - `cline/cline` led late-2025 with `1,221` PRs and early-2026 with `970` PRs
 - `anthropics/claude-code` jumped from `14` PRs in early-2025 to `384` in early-2026
 - `continuedev/continue` peaked in late-2025 and cooled in early-2026
+
+Vendor-level visible attribution pattern:
+
+- `claude`: `304`
+- `openhands`: `77`
+- `codex`: `7`
+- `aider`: `5`
+- `copilot`: `4`
+- `swe-agent`: `3`
+
+Window split:
+
+- early-2025 visible attribution was led by `openhands`
+- late-2025 and early-2026 were both dominated by `claude`
 
 ## Working Hypothesis
 
@@ -106,6 +124,7 @@ More specifically:
 
 - total PR activity increased materially
 - bot activity increased, but not as sharply as visible agent attribution
+- the visible attribution mix became much more `Claude`-heavy by late-2025 and early-2026
 - some repos appear to have distinct operational modes:
   - `OpenHands/OpenHands` looks consistently high-volume
   - `cline/cline` appears to surge into late 2025 and stay very active
@@ -144,6 +163,6 @@ Stay with tables-first exploration for one more slice.
 
 Best next comparison options:
 
-1. break down visible agent-attributed PRs by vendor keyword over time
+1. break vendor attribution down by repo, not just by window
 2. compare PR-opened bots versus PR-body attribution signals
 3. add a non-coding-agent control cohort only after the coding-agent trend is well-characterized
