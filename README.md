@@ -81,12 +81,17 @@ npm run explore:cohort -- --help
 
 # Current coding-agent window comparison
 npm run explore:agent-windows
+
+# Repo-level AI authorship signal explorer
+npm run explore:repo-authorship
 ```
 
 The current comparison artifact writes:
 
 - `output/coding-agent-window-2025-vs-2026-with-late-2025.json`
 - `output/coding-agent-window-2025-vs-2026-with-late-2025.html`
+- `output/repo-authorship-signal-explorer.json`
+- `output/repo-authorship-signal-explorer.html`
 
 This exploration mode is optimized for:
 
@@ -95,6 +100,7 @@ This exploration mode is optimized for:
 - explicit PR-body attribution versus login-attributed signals
 - vendor-level attribution breakdowns from visible PR metadata
 - tables and simple charts instead of map output
+- small-cohort repo-level evidence fusion across README claims, manifests, workflows, PRs, and commits
 
 ## Notes
 
