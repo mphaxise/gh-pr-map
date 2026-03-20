@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { buildSummary, renderHTML } = require('../map_prs');
+const { buildSummary, renderHTML, resolveGeocode } = require('../map_prs');
 
 test('buildSummary aggregates contributor geography and coverage', () => {
   const contributors = [
@@ -118,4 +118,19 @@ test('renderHTML includes the report sections for mapped contributors', () => {
   assert.match(html, /GHPR Map/);
   assert.match(html, /dana/);
   assert.match(html, /4 PRs/);
+});
+
+test('resolveGeocode falls back to cached coordinates when refresh fails', async () => {
+  const cache = {
+    'Paris, France': {
+      lat: 48.8566,
+      lng: 2.3522,
+    },
+  };
+
+  const result = await resolveGeocode('Paris, France', cache, async () => null);
+
+  assert.equal(result.didRequestRefresh, true);
+  assert.equal(result.geocode.lat, 48.8566);
+  assert.equal(result.geocode.lng, 2.3522);
 });

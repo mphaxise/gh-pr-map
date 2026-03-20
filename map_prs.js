@@ -128,6 +128,27 @@ function needsGeocodeRefresh(entry) {
   return !entry || !entry.locationLabel || !entry.displayName || !entry.countryCode;
 }
 
+async function resolveGeocode(location, cache, geocodeLookup = nominatimGeocode) {
+  const cached = normalizeCachedGeocode(cache[location]);
+
+  if (!needsGeocodeRefresh(cached)) {
+    return {
+      geocode: cached,
+      didRequestRefresh: false,
+    };
+  }
+
+  const refreshed = await geocodeLookup(location);
+  if (refreshed) {
+    cache[location] = refreshed;
+  }
+
+  return {
+    geocode: refreshed || cached,
+    didRequestRefresh: true,
+  };
+}
+
 function extractLocationLabel(address) {
   if (!address || typeof address !== 'object') {
     return '';
@@ -953,14 +974,9 @@ async function buildReport({ repo, state, limit, token, cacheFile }) {
     }
 
     contributorsWithProfileLocation += 1;
-    let geocode = normalizeCachedGeocode(cache[location]);
-
-    if (needsGeocodeRefresh(geocode)) {
-      geocode = await nominatimGeocode(location);
+    const { geocode, didRequestRefresh } = await resolveGeocode(location, cache);
+    if (didRequestRefresh) {
       await sleep(1100);
-      if (geocode) {
-        cache[location] = geocode;
-      }
     }
 
     if (!geocode) {
@@ -1042,6 +1058,7 @@ module.exports = {
   needsGeocodeRefresh,
   parseArgs,
   pluralize,
+  resolveGeocode,
   renderHTML,
   renderRoster,
   safeJson,
