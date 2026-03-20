@@ -105,3 +105,21 @@
 1. Add vendor summaries and per-day repo comparison to the report.
 2. Regenerate the live HTML and JSON artifacts.
 3. Re-verify the updated page in Safari and refresh the written hypothesis.
+
+## 2026-03-19 - Bot-Opened Versus PR-Body Attribution
+
+### User Direction
+
+- Make the split between bot-opened PRs and PR-body attribution cleaner.
+
+### Resulting Decisions
+
+- Keep the existing cohort and windows unchanged.
+- Separate explicit PR-body attribution from weaker login-based attribution.
+- Reframe vendor charts around PR-body attribution only.
+
+### Immediate Execution Plan
+
+1. Refactor classification to track body and login attribution separately.
+2. Update the window report to show bot-opened, PR-body attributed, and login-attributed shares.
+3. Regenerate the artifact and verify the new split in Safari.

@@ -6,8 +6,9 @@ Run a discovery-first exploration of whether GHPR should stay focused on GitHub 
 
 - busiest public coding-agent repos
 - fixed PR windows instead of all-time activity
-- visible bot-authored PRs
-- visible agent-attributed PRs
+- bot-opened PRs
+- explicit PR-body attribution
+- login-attributed PRs
 - tables and charts before any heavier visualization choice
 
 This pass explicitly removes location from the active question. The immediate goal is not geography. It is to see whether the public PR stream already shows a meaningful software-agent story.
@@ -79,15 +80,18 @@ The equal-length early windows are the cleanest comparison. Late 2025 is a bridg
 Generated from [output/coding-agent-window-2025-vs-2026-with-late-2025.json](/Users/praneet/gh-pr-map/output/coding-agent-window-2025-vs-2026-with-late-2025.json) on 2026-03-19:
 
 - total sampled PRs across all three windows: `7,984`
-- early-2025: `1,923` PRs, `26` PRs/day, `148` bot PRs, `32` agent-attributed PRs
-- late-2025: `3,304` PRs, `30.6` PRs/day, `399` bot PRs, `86` agent-attributed PRs
-- early-2026: `2,757` PRs, `37.3` PRs/day, `275` bot PRs, `282` agent-attributed PRs
+- explicit PR-body attribution across all windows: `337`
+- login-attributed PRs across all windows: `67`
+- early-2025: `1,923` PRs, `26` PRs/day, `148` bot-opened PRs, `14` PR-body attributed, `18` login-attributed
+- late-2025: `3,304` PRs, `30.6` PRs/day, `399` bot-opened PRs, `86` PR-body attributed, `2` login-attributed
+- early-2026: `2,757` PRs, `37.3` PRs/day, `275` bot-opened PRs, `237` PR-body attributed, `47` login-attributed
 
 Equal-window takeaway:
 
 - early-2026 had `834` more PRs than early-2025, a `43%` increase
 - bot share moved from `8%` to `10%`
-- visible agent-attributed share moved from `2%` to `10%`
+- explicit PR-body share moved from `1%` to `9%`
+- login-attributed share only moved from `1%` to `2%`
 - repo throughput also shifted:
   - `cline/cline` moved from `5.6` PRs/day in early-2025 to `13.1` PRs/day in early-2026
   - `OpenHands/OpenHands` stayed consistently high at `11.7` and `12.2` PRs/day in the equal-length early windows
@@ -103,28 +107,29 @@ Repo-level pattern:
 Vendor-level visible attribution pattern:
 
 - `claude`: `304`
-- `openhands`: `77`
+- `openhands`: `17`
 - `codex`: `7`
 - `aider`: `5`
 - `copilot`: `4`
-- `swe-agent`: `3`
 
 Window split:
 
-- early-2025 visible attribution was led by `openhands`
+- early-2025 explicit PR-body attribution was already `claude`-leaning
 - late-2025 and early-2026 were both dominated by `claude`
+- the older combined attribution bucket overstated `openhands` because many of those PRs were login-attributed rather than PR-body attributed
 
 ## Working Hypothesis
 
 The current best hypothesis is:
 
-`Public coding-agent repos got substantially busier from early 2025 to early 2026, and the fastest-growing signal was not just raw PR count but visible agent-attributed PR activity.`
+`Public coding-agent repos got substantially busier from early 2025 to early 2026, and the clearest provenance shift was explicit PR-body attribution rather than bot openings or login-based signals.`
 
 More specifically:
 
 - total PR activity increased materially
-- bot activity increased, but not as sharply as visible agent attribution
-- the visible attribution mix became much more `Claude`-heavy by late-2025 and early-2026
+- bot openings increased, but not as sharply as explicit PR-body attribution
+- login-based attribution stayed comparatively small
+- the PR-body attribution mix became overwhelmingly `Claude`-heavy by late-2025 and early-2026
 - some repos appear to have distinct operational modes:
   - `OpenHands/OpenHands` looks consistently high-volume
   - `cline/cline` appears to surge into late 2025 and stay very active
@@ -138,7 +143,9 @@ Preferred labels:
 
 - `agent-attributed`
 - `agent-created`
-- `bot-authored`
+- `bot-opened`
+- `PR-body attributed`
+- `login-attributed`
 
 Avoid:
 
@@ -163,6 +170,6 @@ Stay with tables-first exploration for one more slice.
 
 Best next comparison options:
 
-1. break vendor attribution down by repo, not just by window
-2. compare PR-opened bots versus PR-body attribution signals
+1. break PR-body attribution down by repo, not just by window
+2. compare PR-opened bots versus PR-body attribution signals at the repo level
 3. add a non-coding-agent control cohort only after the coding-agent trend is well-characterized

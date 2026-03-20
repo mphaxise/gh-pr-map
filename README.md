@@ -91,8 +91,8 @@ The current comparison artifact writes:
 This exploration mode is optimized for:
 
 - fixed date-window comparisons
-- bot-authored PR detection
-- visible agent-attributed PR signals
+- bot-opened PR detection
+- explicit PR-body attribution versus login-attributed signals
 - vendor-level attribution breakdowns from visible PR metadata
 - tables and simple charts instead of map output
 
