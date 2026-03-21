@@ -87,6 +87,9 @@ npm run explore:repo-authorship
 
 # OpenClaw GitHub smoke test
 npm run explore:openclaw-smoke
+
+# OpenClaw explicit PR sample and repo bucketing
+npm run explore:openclaw-explicit-prs
 ```
 
 The current comparison artifact writes:
@@ -97,6 +100,8 @@ The current comparison artifact writes:
 - `output/repo-authorship-signal-explorer.html`
 - `output/openclaw-github-smoke.json`
 - `output/openclaw-github-smoke.html`
+- `output/openclaw-explicit-pr-sample.json`
+- `output/openclaw-explicit-pr-sample.html`
 
 This exploration mode is optimized for:
 
@@ -107,6 +112,7 @@ This exploration mode is optimized for:
 - tables and simple charts instead of map output
 - small-cohort repo-level evidence fusion across README claims, manifests, workflows, PRs, and commits
 - quick smoke tests for whether a tool ecosystem shows up in public repos, config files, and PR text
+- fast classification passes over explicit PR samples to see what kinds of repos sit behind visible attribution
 
 ## Notes
 
