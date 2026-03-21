@@ -134,6 +134,8 @@ function usage() {
     '',
     'Options:',
     `  --per-query <n>      Search result sample size per query (default: ${DEFAULT_PER_QUERY})`,
+    '  --date-from <date>   Inclusive window start in YYYY-MM-DD for PR and commit queries',
+    '  --date-to <date>     Inclusive window end in YYYY-MM-DD for PR and commit queries',
     `  --out-json <path>    JSON output path (default: ${DEFAULT_OUT_JSON})`,
     `  --out-html <path>    HTML output path (default: ${DEFAULT_OUT_HTML})`,
   ].join('\n');
@@ -144,6 +146,8 @@ function parseArgs(argv) {
   const parsed = {
     help: false,
     perQuery: DEFAULT_PER_QUERY,
+    dateFrom: '',
+    dateTo: '',
     outJson: DEFAULT_OUT_JSON,
     outHtml: DEFAULT_OUT_HTML,
   };
@@ -158,6 +162,18 @@ function parseArgs(argv) {
 
     if (arg === '--per-query') {
       parsed.perQuery = Math.max(1, Math.min(20, parseInt(args[index + 1], 10)));
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--date-from') {
+      parsed.dateFrom = cleanText(args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--date-to') {
+      parsed.dateTo = cleanText(args[index + 1]);
       index += 1;
       continue;
     }
@@ -186,6 +202,34 @@ function cleanText(value) {
   }
 
   return String(value).trim();
+}
+
+function normalizeDateWindow(dateFrom, dateTo) {
+  const from = cleanText(dateFrom);
+  const to = cleanText(dateTo);
+
+  if (!from && !to) {
+    return null;
+  }
+
+  const start = from ? new Date(`${from}T00:00:00Z`) : null;
+  const end = to ? new Date(`${to}T23:59:59Z`) : null;
+
+  if ((start && Number.isNaN(start.getTime())) || (end && Number.isNaN(end.getTime()))) {
+    throw new Error('Invalid date window. Use YYYY-MM-DD for --date-from and --date-to.');
+  }
+
+  if (start && end && start > end) {
+    throw new Error('--date-from must be earlier than or equal to --date-to.');
+  }
+
+  return {
+    dateFrom: from,
+    dateTo: to,
+    label: `${from || 'start'} to ${to || 'present'}`,
+    pullRequestQualifier: `created:${from || '*'}..${to || '*'}`,
+    commitQualifier: `committer-date:${from || '*'}..${to || '*'}`,
+  };
 }
 
 function escapeHtml(value) {
@@ -246,15 +290,33 @@ function requestJson(apiPath, token, accept) {
   });
 }
 
-async function ghSearch(spec, perQuery, token) {
-  const basePath = `/search/${spec.endpoint}?q=${encodeURIComponent(spec.query)}&per_page=${perQuery}`;
+function applyDateWindowToQuery(spec, dateWindow) {
+  if (!dateWindow) {
+    return spec.query;
+  }
+
+  if (spec.category === 'pull_requests') {
+    return `${spec.query} ${dateWindow.pullRequestQualifier}`;
+  }
+
+  if (spec.category === 'commits') {
+    return `${spec.query} ${dateWindow.commitQualifier}`;
+  }
+
+  return spec.query;
+}
+
+async function ghSearch(spec, perQuery, token, dateWindow) {
+  const query = applyDateWindowToQuery(spec, dateWindow);
+  const basePath = `/search/${spec.endpoint}?q=${encodeURIComponent(query)}&per_page=${perQuery}`;
   const apiPath = spec.endpoint === 'repositories'
     ? `${basePath}&sort=updated&order=desc`
     : `${basePath}&sort=updated&order=desc`;
   const accept = spec.endpoint === 'commits'
     ? 'application/vnd.github.cloak-preview+json'
     : 'application/vnd.github.text-match+json';
-  return requestJson(apiPath, token, accept);
+  const response = await requestJson(apiPath, token, accept);
+  return { response, query };
 }
 
 function extractRepoFromApiUrl(apiUrl) {
@@ -308,7 +370,7 @@ function normalizeSearchItem(spec, item) {
   };
 }
 
-function summarizeQueryResult(spec, response) {
+function summarizeQueryResult(spec, response, resolvedQuery) {
   const items = Array.isArray(response.items) ? response.items : [];
 
   return {
@@ -316,7 +378,7 @@ function summarizeQueryResult(spec, response) {
     label: spec.label,
     category: spec.category,
     strength: spec.strength,
-    query: spec.query,
+    query: resolvedQuery || spec.query,
     why: spec.why,
     totalCount: response.total_count || 0,
     incompleteResults: Boolean(response.incomplete_results),
@@ -613,6 +675,7 @@ function renderHtml(report) {
         Generated on ${escapeHtml(report.generatedAt)}. This report is a quick directional test, not a deduplicated benchmark.
         It separates broad OpenClaw ecosystem mentions from stronger explicit claims such as “generated with OpenClaw”.
       </p>
+      <p class="lede">Window applied to PR and commit queries: ${escapeHtml(report.dateWindow ? report.dateWindow.label : 'all available dates')}</p>
       <div class="cards">
         ${cards.map(([label, value]) => `
           <article class="card">
@@ -659,11 +722,12 @@ function renderHtml(report) {
 async function buildReport(options) {
   const token = cleanText(options.token || process.env.GITHUB_TOKEN);
   const perQuery = options.perQuery || DEFAULT_PER_QUERY;
+  const dateWindow = normalizeDateWindow(options.dateFrom, options.dateTo);
   const results = [];
 
   for (const spec of DEFAULT_QUERY_SPECS) {
-    const response = await ghSearch(spec, perQuery, token);
-    results.push(summarizeQueryResult(spec, response));
+    const { response, query } = await ghSearch(spec, perQuery, token, dateWindow);
+    results.push(summarizeQueryResult(spec, response, query));
   }
 
   const summary = buildSummary(results);
@@ -672,6 +736,7 @@ async function buildReport(options) {
     generatedAt: new Date().toISOString(),
     tokenPresent: Boolean(token),
     perQuery,
+    dateWindow,
     summary,
     interpretation: buildInterpretation(summary),
     results,
@@ -707,10 +772,12 @@ if (require.main === module) {
 
 module.exports = {
   DEFAULT_QUERY_SPECS,
+  applyDateWindowToQuery,
   buildInterpretation,
   buildReport,
   buildSummary,
   extractRepoFromApiUrl,
+  normalizeDateWindow,
   normalizeSearchItem,
   renderHtml,
   summarizeQueryResult,

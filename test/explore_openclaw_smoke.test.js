@@ -3,9 +3,11 @@ const assert = require('node:assert/strict');
 
 const {
   DEFAULT_QUERY_SPECS,
+  applyDateWindowToQuery,
   buildInterpretation,
   buildSummary,
   extractRepoFromApiUrl,
+  normalizeDateWindow,
   normalizeSearchItem,
   renderHtml,
 } = require('../scripts/explore_openclaw_smoke');
@@ -19,6 +21,21 @@ test('default OpenClaw smoke queries cover repos, PRs, and config files', () => 
   assert.equal(ids.includes('commit-coauthored-openclaw'), true);
   assert.equal(ids.includes('agents-openclaw'), true);
   assert.equal(ids.includes('claude-md-openclaw'), true);
+});
+
+test('date window applies created to PRs and committer-date to commits', () => {
+  const window = normalizeDateWindow('2025-10-01', '2026-03-15');
+  const prQuery = applyDateWindowToQuery(
+    { category: 'pull_requests', query: '"generated with openclaw" type:pr is:public' },
+    window
+  );
+  const commitQuery = applyDateWindowToQuery(
+    { category: 'commits', query: '"generated with openclaw"' },
+    window
+  );
+
+  assert.match(prQuery, /created:2025-10-01\.\.2026-03-15/);
+  assert.match(commitQuery, /committer-date:2025-10-01\.\.2026-03-15/);
 });
 
 test('summary separates explicit, integration, and broad signals', () => {
@@ -97,6 +114,7 @@ test('normalizeSearchItem extracts repo names from issue and code search results
 test('renderHtml includes smoke-test framing and query labels', () => {
   const html = renderHtml({
     generatedAt: '2026-03-20T00:00:00Z',
+    dateWindow: { label: '2025-10-01 to 2026-03-15' },
     summary: {
       queryCount: 13,
       broadRepoSignals: 12,
@@ -134,5 +152,6 @@ test('renderHtml includes smoke-test framing and query labels', () => {
   assert.match(html, /Quick Read/);
   assert.match(html, /Repo mentions of OpenClaw/);
   assert.match(html, /Explicit commit signals/);
+  assert.match(html, /2025-10-01 to 2026-03-15/);
   assert.match(html, /openclaw\/openclaw/);
 });

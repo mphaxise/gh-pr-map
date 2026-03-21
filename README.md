@@ -88,6 +88,9 @@ npm run explore:repo-authorship
 # OpenClaw GitHub smoke test
 npm run explore:openclaw-smoke
 
+# Windowed OpenClaw smoke test for PR and commit signals
+npm run explore:openclaw-smoke -- --date-from 2025-10-01 --date-to 2026-03-15
+
 # OpenClaw explicit PR sample and repo bucketing
 npm run explore:openclaw-explicit-prs
 
