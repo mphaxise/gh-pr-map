@@ -84,6 +84,9 @@ npm run explore:agent-windows
 
 # Repo-level AI authorship signal explorer
 npm run explore:repo-authorship
+
+# OpenClaw GitHub smoke test
+npm run explore:openclaw-smoke
 ```
 
 The current comparison artifact writes:
@@ -92,6 +95,8 @@ The current comparison artifact writes:
 - `output/coding-agent-window-2025-vs-2026-with-late-2025.html`
 - `output/repo-authorship-signal-explorer.json`
 - `output/repo-authorship-signal-explorer.html`
+- `output/openclaw-github-smoke.json`
+- `output/openclaw-github-smoke.html`
 
 This exploration mode is optimized for:
 
@@ -101,6 +106,7 @@ This exploration mode is optimized for:
 - vendor-level attribution breakdowns from visible PR metadata
 - tables and simple charts instead of map output
 - small-cohort repo-level evidence fusion across README claims, manifests, workflows, PRs, and commits
+- quick smoke tests for whether a tool ecosystem shows up in public repos, config files, and PR text
 
 ## Notes
 
