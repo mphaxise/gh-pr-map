@@ -90,6 +90,9 @@ npm run explore:openclaw-smoke
 
 # OpenClaw explicit PR sample and repo bucketing
 npm run explore:openclaw-explicit-prs
+
+# Windowed OpenClaw explicit PR sample
+npm run explore:openclaw-explicit-prs -- --date-from 2025-10-01 --date-to 2026-03-15 --exclude-repos openclaw/openclaw
 ```
 
 The current comparison artifact writes:

@@ -9,6 +9,7 @@ const {
   classifyRepo,
   dedupePullRequests,
   extractRepoFromApiUrl,
+  normalizeDateWindow,
   renderHtml,
 } = require('../scripts/explore_openclaw_explicit_prs');
 
@@ -19,6 +20,13 @@ test('explicit PR queries cover multiple attribution phrasings', () => {
   assert.equal(ids.includes('built-with-openclaw'), true);
   assert.equal(ids.includes('created-with-openclaw'), true);
   assert.equal(ids.includes('authored-by-openclaw'), true);
+});
+
+test('normalizeDateWindow builds an inclusive created-date qualifier', () => {
+  const window = normalizeDateWindow('2025-10-01', '2026-03-15');
+
+  assert.equal(window.label, '2025-10-01 to 2026-03-15');
+  assert.equal(window.query, 'created:2025-10-01..2026-03-15');
 });
 
 test('dedupePullRequests merges repeated hits across query templates', () => {
@@ -171,6 +179,7 @@ test('buildManualReviewRows surfaces ambiguous repos first', () => {
 test('renderHtml includes sampled PR and repo classification sections', () => {
   const html = renderHtml({
     generatedAt: '2026-03-20T00:00:00Z',
+    dateWindow: { label: '2025-10-01 to 2026-03-15' },
     summary: {
       queryCount: 4,
       rawHits: 50,
@@ -231,5 +240,6 @@ test('renderHtml includes sampled PR and repo classification sections', () => {
   assert.match(html, /Sampled PRs/);
   assert.match(html, /Repo Classification Cards/);
   assert.match(html, /Manual Review Queue/);
+  assert.match(html, /2025-10-01 to 2026-03-15/);
   assert.match(html, /example\/repo/);
 });

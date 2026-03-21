@@ -66,6 +66,8 @@ function usage() {
     `  --sample-size <n>    Number of unique PRs to classify (default: ${DEFAULT_SAMPLE_SIZE})`,
     `  --per-query <n>      Search results to fetch per explicit query (default: ${DEFAULT_PER_QUERY})`,
     `  --manual-review-limit <n>  Ambiguous repos to highlight (default: ${DEFAULT_MANUAL_REVIEW_LIMIT})`,
+    '  --date-from <date>   Inclusive PR created date in YYYY-MM-DD',
+    '  --date-to <date>     Inclusive PR created date in YYYY-MM-DD',
     '  --exclude-repos <a,b>  Comma-separated repos to exclude from the sampled PR set',
     `  --out-json <path>    JSON output path (default: ${DEFAULT_OUT_JSON})`,
     `  --out-html <path>    HTML output path (default: ${DEFAULT_OUT_HTML})`,
@@ -79,6 +81,8 @@ function parseArgs(argv) {
     sampleSize: DEFAULT_SAMPLE_SIZE,
     perQuery: DEFAULT_PER_QUERY,
     manualReviewLimit: DEFAULT_MANUAL_REVIEW_LIMIT,
+    dateFrom: '',
+    dateTo: '',
     excludeRepos: [],
     outJson: DEFAULT_OUT_JSON,
     outHtml: DEFAULT_OUT_HTML,
@@ -106,6 +110,18 @@ function parseArgs(argv) {
 
     if (arg === '--manual-review-limit') {
       parsed.manualReviewLimit = Math.max(1, Math.min(50, parseInt(args[index + 1], 10)));
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--date-from') {
+      parsed.dateFrom = cleanText(args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--date-to') {
+      parsed.dateTo = cleanText(args[index + 1]);
       index += 1;
       continue;
     }
@@ -140,6 +156,33 @@ function cleanText(value) {
   }
 
   return String(value).trim();
+}
+
+function normalizeDateWindow(dateFrom, dateTo) {
+  const from = cleanText(dateFrom);
+  const to = cleanText(dateTo);
+
+  if (!from && !to) {
+    return null;
+  }
+
+  const start = from ? new Date(`${from}T00:00:00Z`) : null;
+  const end = to ? new Date(`${to}T23:59:59Z`) : null;
+
+  if ((start && Number.isNaN(start.getTime())) || (end && Number.isNaN(end.getTime()))) {
+    throw new Error('Invalid date window. Use YYYY-MM-DD for --date-from and --date-to.');
+  }
+
+  if (start && end && start > end) {
+    throw new Error('--date-from must be earlier than or equal to --date-to.');
+  }
+
+  return {
+    dateFrom: from,
+    dateTo: to,
+    label: `${from || 'start'} to ${to || 'present'}`,
+    query: `created:${from || '*'}..${to || '*'}`,
+  };
 }
 
 function escapeHtml(value) {
@@ -735,6 +778,7 @@ function renderHtml(report) {
         Generated on ${escapeHtml(report.generatedAt)} from ${formatCount(report.summary.queryCount)} explicit query templates.
         This is a sampled classification pass over the most recent deduped PR hits, not a complete census.
       </p>
+      <p class="muted">Window: ${escapeHtml(report.dateWindow ? report.dateWindow.label : 'all available dates')}</p>
       <div class="cards">
         ${cards.map(([label, value]) => `
           <article class="card">
@@ -814,12 +858,15 @@ async function buildReport(options) {
   const sampleSize = options.sampleSize || DEFAULT_SAMPLE_SIZE;
   const manualReviewLimit = options.manualReviewLimit || DEFAULT_MANUAL_REVIEW_LIMIT;
   const excludedRepos = new Set((options.excludeRepos || []).map(item => cleanText(item)).filter(Boolean));
+  const dateWindow = normalizeDateWindow(options.dateFrom, options.dateTo);
 
   const rawQueryResults = [];
   for (const spec of EXPLICIT_PR_QUERIES) {
-    const response = await searchExplicitPullRequests(spec, perQuery, token);
+    const query = dateWindow ? `${spec.query} ${dateWindow.query}` : spec.query;
+    const response = await searchExplicitPullRequests({ ...spec, query }, perQuery, token);
     rawQueryResults.push({
       ...spec,
+      query,
       totalCount: response.total_count || 0,
       items: Array.isArray(response.items) ? response.items : [],
     });
@@ -862,6 +909,7 @@ async function buildReport(options) {
     sampleSize,
     perQuery,
     manualReviewLimit,
+    dateWindow,
     excludeRepos: Array.from(excludedRepos),
     summary,
     interpretation: buildInterpretation(summary),
@@ -909,5 +957,6 @@ module.exports = {
   classifyRepo,
   dedupePullRequests,
   extractRepoFromApiUrl,
+  normalizeDateWindow,
   renderHtml,
 };
