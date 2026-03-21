@@ -1,0 +1,178 @@
+{
+  "reviewedAt": "2026-03-20",
+  "window": {
+    "dateFrom": "2025-10-01",
+    "dateTo": "2026-03-15"
+  },
+  "excludedRepos": [
+    "openclaw/openclaw"
+  ],
+  "labelPolicy": {
+    "app repo": "User-facing application, site, or standalone product/tool repository rather than an agent platform layer.",
+    "plugin/add-on": "Integration, extension, skill pack, config collection, or downstream OpenClaw add-on layer.",
+    "agent infra": "Agent platform, orchestrator, workflow engine, deployment/runtime wrapper, template, or control-plane style repo.",
+    "unclear": "Community/docs/config repo or mixed case that does not fit the other buckets cleanly."
+  },
+  "reviews": [
+    {
+      "repo": "sledtools/pika",
+      "reviewedLabel": "app repo",
+      "note": "End-to-end encrypted messaging app spanning iOS, Android, desktop, and CLI."
+    },
+    {
+      "repo": "tianxiao1430-jpg/kuma-claw",
+      "reviewedLabel": "app repo",
+      "note": "Presented as an intelligent office assistant product rather than a generic agent framework."
+    },
+    {
+      "repo": "scarnyc/sentinel",
+      "reviewedLabel": "plugin/add-on",
+      "note": "OpenClaw-specific security integration and plugin wiring, not a standalone app."
+    },
+    {
+      "repo": "projectdiscovery/nuclei",
+      "reviewedLabel": "app repo",
+      "note": "Standalone security scanner product/tool rather than agent infrastructure."
+    },
+    {
+      "repo": "jadsondamasceno77-cmyk/JOD_ROBO",
+      "reviewedLabel": "agent infra",
+      "note": "Autonomous multi-agent software-development system."
+    },
+    {
+      "repo": "pesulabs/pesuclaw",
+      "reviewedLabel": "agent infra",
+      "note": "Overlay runtime and deployment tooling around OpenClaw."
+    },
+    {
+      "repo": "roseforljh/EveryTalk",
+      "reviewedLabel": "app repo",
+      "note": "User-facing intelligent conversation platform."
+    },
+    {
+      "repo": "funkymonkeymonk/nix",
+      "reviewedLabel": "unclear",
+      "note": "Generic Nix configuration repo with one OpenClaw-related addition, not a clean OpenClaw repo type."
+    },
+    {
+      "repo": "electron-rare/Kill_LIFE",
+      "reviewedLabel": "agent infra",
+      "note": "AI-native embedded-project template and workflow scaffold."
+    },
+    {
+      "repo": "vignesh07/clawdbot-railway-template",
+      "reviewedLabel": "agent infra",
+      "note": "Deployment template and onboarding wrapper for OpenClaw."
+    },
+    {
+      "repo": "deepmodeling/reacnetgenerator",
+      "reviewedLabel": "app repo",
+      "note": "Standalone scientific software tool, not an agent platform."
+    },
+    {
+      "repo": "srinivas486/skillfield-landing",
+      "reviewedLabel": "app repo",
+      "note": "Landing site / web property."
+    },
+    {
+      "repo": "AINYC/aeo-audit",
+      "reviewedLabel": "app repo",
+      "note": "Standalone audit product/tool."
+    },
+    {
+      "repo": "BankrBot/skills",
+      "reviewedLabel": "plugin/add-on",
+      "note": "Skill collection for builders; plugin-style ecosystem package."
+    },
+    {
+      "repo": "Monkey-D-Luisi/vibe-flow",
+      "reviewedLabel": "agent infra",
+      "note": "Autonomous multi-agent product-team framework."
+    },
+    {
+      "repo": "openclaw/lobster",
+      "reviewedLabel": "agent infra",
+      "note": "Workflow shell and automation engine for OpenClaw."
+    },
+    {
+      "repo": "rjmurillo/ai-agents",
+      "reviewedLabel": "agent infra",
+      "note": "Multi-agent framework for software-development workflows."
+    },
+    {
+      "repo": "daggerhashimoto/openclaw-nerve",
+      "reviewedLabel": "agent infra",
+      "note": "Cockpit/control-plane style product for operating OpenClaw agents."
+    },
+    {
+      "repo": "agentcontrol/openclaw-plugin",
+      "reviewedLabel": "plugin/add-on",
+      "note": "Explicit OpenClaw plugin."
+    },
+    {
+      "repo": "nsxdavid/anthropic-max-router",
+      "reviewedLabel": "agent infra",
+      "note": "Routing and compatibility layer for agent/tool use."
+    },
+    {
+      "repo": "Memphis-Chains/MemphisOS-OpenClaw",
+      "reviewedLabel": "plugin/add-on",
+      "note": "Downstream OpenClaw integration pack for another platform."
+    },
+    {
+      "repo": "Gen-Verse/OpenClaw-RL",
+      "reviewedLabel": "agent infra",
+      "note": "Agent training / reinforcement-learning layer."
+    },
+    {
+      "repo": "augmentedmike/miniclaw-os",
+      "reviewedLabel": "agent infra",
+      "note": "Cognitive architecture / memory-planning layer for agents."
+    },
+    {
+      "repo": "hesamsheikh/awesome-openclaw-usecases",
+      "reviewedLabel": "unclear",
+      "note": "Community use-case collection rather than app, plugin, or infra code."
+    },
+    {
+      "repo": "thedotmack/claude-mem",
+      "reviewedLabel": "plugin/add-on",
+      "note": "Plugin-style context/memory extension with IDE integrations."
+    },
+    {
+      "repo": "aloong-planet/openclaw-memory-core-plus",
+      "reviewedLabel": "plugin/add-on",
+      "note": "OpenClaw memory enhancement extension."
+    },
+    {
+      "repo": "bitcoin/bips",
+      "reviewedLabel": "unclear",
+      "note": "Standards/docs repository; not cleanly an app, plugin, or agent-infra repo."
+    },
+    {
+      "repo": "milvus-io/community",
+      "reviewedLabel": "unclear",
+      "note": "Community/blog repository rather than a direct app or OpenClaw integration package."
+    },
+    {
+      "repo": "ArchieIndian/openclaw-superpowers",
+      "reviewedLabel": "plugin/add-on",
+      "note": "Skill pack and extension bundle for OpenClaw."
+    },
+    {
+      "repo": "KamNoob/everything-claude-code",
+      "reviewedLabel": "plugin/add-on",
+      "note": "Configuration and extension collection rather than a standalone product repo."
+    },
+    {
+      "repo": "biomejs/biome",
+      "reviewedLabel": "app repo",
+      "note": "Standalone developer product/toolchain rather than agent infrastructure."
+    },
+    {
+      "repo": "dontriskit/submarine",
+      "reviewedLabel": "app repo",
+      "note": "Standalone product/project repo rather than a plugin or agent framework."
+    }
+  ]
+}

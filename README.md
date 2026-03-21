@@ -141,3 +141,4 @@ See [BRAINSTORM.md](BRAINSTORM.md) for potential next features.
 
 - [docs/experiment-variation-public-ai-authorship-prior-art.md](docs/experiment-variation-public-ai-authorship-prior-art.md)
 - [docs/experiment-variation-vibe-coding-landscape.md](docs/experiment-variation-vibe-coding-landscape.md)
+- [docs/experiment-variation-openclaw-window-manual-review.md](docs/experiment-variation-openclaw-window-manual-review.md)
