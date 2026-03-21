@@ -4,6 +4,10 @@ Prepared on `2026-03-20` for the GHPR exploration.
 
 This document is one experiment variation inside the broader repo. It is intentionally framed as a side investigation into public AI-authorship signals and prior work, not as the repo's single product direction.
 
+Related follow-up:
+
+- [experiment-variation-vibe-coding-landscape.md](./experiment-variation-vibe-coding-landscape.md)
+
 ## Question
 
 Has anyone already analyzed public GitHub repositories or pull requests to distinguish AI-authored code from human-authored code, or to identify repositories that look mostly or entirely AI-generated?
@@ -22,43 +26,49 @@ I did **not** find a widely used public benchmark that cleanly labels entire rep
 
 ## Closest Prior Work
 
+I expanded the notes below with four things for each item: the sample they studied, how they built it, what they found, and what it means for GHPR. Where an abstract page did not expose enough detail on its own, I supplemented it with an open full-text mirror or a public literature-review mirror and list those in the sources.
+
 ### 1. PR-level analysis of agent-authored GitHub work
 
 - [On the Use of Agentic Coding: An Empirical Study of Pull Requests on GitHub](https://huggingface.co/papers/2509.14745)
-  - arXiv preprint `2509.14745`
-  - closest match to the GHPR direction
-  - studies `567` GitHub pull requests generated using Claude Code across `157` open-source projects
-  - asks what kinds of PRs agents submit, how often they are merged, and how much human revision they still need
+- Sample: `567` Claude Code pull requests across `157` open-source repositories, plus a matched comparison set of `567` human pull requests from the same repositories and authors.
+- Process: the authors mined PRs explicitly marked `Generated with Claude Code`, restricted to projects with at least `10` stars, and compared them with matched human PRs. They then manually coded PR purpose, rejection reasons, and post-submission revisions, and paired that with statistical analysis of merge rate, change size, PR description length, and revision effort.
+- Findings: this is the closest prior work to GHPR. Agentic PRs were merged `83.8%` of the time versus `91.0%` for matched human PRs, but `54.9%` of merged agentic PRs landed without further modification. Agentic PRs skewed toward refactoring, tests, documentation, and multi-purpose submissions; when humans revised them, the most common fixes were bug fixes (`45.1%` of revised APRs), docs (`27.4%`), refactoring (`25.7%`), and style cleanup (`22.1%`).
+- GHPR takeaway: explicit PR-body provenance is a very strong signal and a realistic way to build a high-confidence labeled set. It also shows why merge status alone is not a useful AI-versus-human label: many accepted AI PRs still need human shaping.
 
 ### 2. Public GitHub mining of explicitly AI-generated code
 
 - [Security Vulnerabilities in AI-Generated Code: A Large-Scale Analysis of Public GitHub Repositories](https://link.springer.com/chapter/10.1007/978-981-95-3537-8_9)
-  - mined `7,703` explicitly attributed AI-generated files from public GitHub repositories
-  - focused on security outcomes rather than repo-level authorship classification
-  - useful precedent for building a dataset from explicit provenance signals
+- Sample: the paper reports `82,413` raw GitHub code-search hits for explicit AI attribution patterns, filtered down to `10,387` files overall and then to roughly `7.7k` Python, JavaScript, and TypeScript files for detailed CodeQL analysis. The abstract summarizes the study as analyzing `7,703` explicitly attributed files.
+- Process: the authors used GitHub REST API code search with explicit attribution phrases tied to four tools: ChatGPT, GitHub Copilot, Amazon CodeWhisperer, and Tabnine. They then ran duplicate, language, and file-size filtering before applying CodeQL and mapping findings to CWE and CVSS-style security categories.
+- Findings: they found `4,241` CWE instances across `77` vulnerability types. Most files (`87.9%`) had no identifiable CWE-mapped vulnerability, but the risk was not uniform: Python showed consistently higher vulnerability rates than JavaScript or TypeScript, and documentation files made up a surprisingly large share of the collected corpus (`39%` of deduplicated files).
+- GHPR takeaway: this is strong precedent for building a public dataset from explicit provenance signals in GitHub itself. It also shows the main limitation of that strategy: explicit attribution is high precision but incomplete, so it should be treated as one evidence layer rather than full coverage of AI use.
 
 ### 3. Detection of machine-written versus human-written code
 
 - [Between Lines of Code: Unraveling the Distinct Patterns of Machine and Human Programmers](https://arxiv.org/abs/2401.06461)
-  - accepted to ICSE 2025
-  - studies lexical diversity, conciseness, naturalness, and syntactic segmentation as provenance signals
+- Sample: the paper uses `10,000` Python functions from CodeSearchNet as the human reference set and generates matched machine-written code with CodeLlama `7B`; the detection stage is then evaluated across CodeSearchNet and The Stack with six code language models.
+- Process: the authors compare human and machine code along lexical diversity, conciseness, and naturalness. They use `tree-sitter` to break code into token categories, study token frequencies and whitespace behavior, and then build `DetectCodeGPT`, which perturbs code by inserting spaces and newlines instead of calling an external LLM to generate paraphrases.
+- Findings: machine-authored code was more concise, more "natural" under language-model scoring, and used a narrower token spectrum than human code. The most important discriminator was syntactic segmentation, especially whitespace and line-break structure. Their detector reached an average `AUROC` of `0.8308`, beat the strongest baseline by about `7.6%` on average, and had the best result in `21` of `24` dataset/model settings.
+- GHPR takeaway: code-style and segmentation signals are useful, but they are much weaker than explicit provenance metadata. This line of work is most useful as a backstop or tie-breaker when repo metadata is thin, not as the primary repo-level labeling strategy.
 - [DetectCodeGPT](https://github.com/YerbaPage/DetectCodeGPT)
-  - code repository accompanying the paper above
-  - frames the problem as code-level detection rather than GitHub activity analysis
+- Why it matters separately: the companion repository makes the detection pipeline concrete and reusable, but it is still solving a code-snippet provenance problem, not a repository-history problem.
 
 ### 4. PR-quality comparison using AI-vs-human labels
 
 - [CodeRabbit: State of AI vs Human Code Generation Report](https://www.coderabbit.ai/blog/state-of-ai-vs-human-code-generation-report)
-  - analyzed `470` open-source GitHub pull requests
-  - compared `320` AI-co-authored PRs with `150` human-only PRs
-  - useful as evidence that people are already building AI-versus-human PR datasets, though their labels are heuristic rather than ground truth
+- Sample: `470` open-source GitHub pull requests, including `320` AI-co-authored PRs and `150` human-only PRs.
+- Process: CodeRabbit applied its issue taxonomy to the PRs, normalized issue rates, and compared the two groups statistically. Their important limitation is explicit: AI authorship was inferred from co-authorship or other visible signals, and PRs without those signals were treated as human-authored for the report.
+- Findings: AI PRs had about `1.7x` more issues overall. Logic and correctness problems were `75%` more common, readability issues were more than `3x` higher, and critical, major, security, and performance issues were all elevated in the AI-labeled group.
+- GHPR takeaway: this is useful as a downstream outcome study once you already have an AI-versus-human label. It is not a ground-truth authorship benchmark, but it is a good reminder that `mixed` and `AI-first` repos may show different review-risk patterns than `human-led` repos.
 
 ### 5. Repo-level mining of agent manifests
 
 - [On the Use of Agentic Coding Manifests: An Empirical Study of Claude Code](https://huggingface.co/papers/2509.14744)
-  - studies `253` `CLAUDE.md` files from `242` repositories
-  - useful because it treats agent manifests as public repo-level evidence of agent-assisted development
-  - not a full authorship classifier, but very relevant to repo-level signal design
+- Sample: the authors started from `838` `CLAUDE.md` files across `806` repositories and filtered down to `253` manifest files in `242` repositories, keeping only repos that accumulated at least `20` commits after the manifest appeared. They also retrieved `1,249` associated commits.
+- Process: they did two kinds of analysis. First, they measured manifest structure using markdown heading depth and section counts. Second, they ran a manual content classification workflow that started with candidate labels from Claude, Gemini, and ChatGPT, then had human researchers consolidate and assign the final manifest labels.
+- Findings: the files were structurally shallow, typically with a single main heading and a moderate number of `H2` and `H3` sections. Content was dominated by `Build and Run` (`77.1%` of files), `Implementation Details` (`71.9%`), `Architecture` (`64.8%`), and `Testing` (`60.5%`). `AI Integration` appeared in `15.4%` of manifests, while `Security` appeared in only `8.7%`.
+- GHPR takeaway: manifest files are one of the strongest repo-level signals of agentic tooling and are directly relevant to labels like `AI-first` or `mixed`. But they are configuration evidence, not proof that the code history itself is mostly AI-authored.
 
 ## GitHub Search Signals That Already Exist
 

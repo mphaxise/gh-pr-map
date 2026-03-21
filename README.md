@@ -122,3 +122,4 @@ See [BRAINSTORM.md](BRAINSTORM.md) for potential next features.
 ## Experiment Variations
 
 - [docs/experiment-variation-public-ai-authorship-prior-art.md](docs/experiment-variation-public-ai-authorship-prior-art.md)
+- [docs/experiment-variation-vibe-coding-landscape.md](docs/experiment-variation-vibe-coding-landscape.md)
