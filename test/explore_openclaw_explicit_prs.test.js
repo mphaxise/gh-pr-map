@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
   EXPLICIT_PR_QUERIES,
   buildInterpretation,
+  buildManualReviewRows,
   buildSummary,
   classifyRepo,
   dedupePullRequests,
@@ -107,9 +108,11 @@ test('classifyRepo separates agent infra, plugins, apps, and unclear', () => {
   });
 
   assert.equal(infra.label, 'agent infra');
+  assert.equal(infra.ambiguous, false);
   assert.equal(plugin.label, 'plugin/add-on');
   assert.equal(app.label, 'app repo');
   assert.equal(unclear.label, 'unclear');
+  assert.equal(unclear.ambiguous, true);
 });
 
 test('summary and interpretation describe category mix', () => {
@@ -134,9 +137,35 @@ test('summary and interpretation describe category mix', () => {
   assert.equal(summary.rawHits, 15);
   assert.equal(summary.sampledPrs, 3);
   assert.equal(summary.uniqueRepos, 2);
+  assert.equal(summary.manualReviewCount, 0);
   assert.equal(summary.categoryCounts[0].label, 'agent infra');
   assert.equal(interpretation.some(note => note.includes('largest bucket is agent infra')), true);
   assert.equal(interpretation.some(note => note.includes('user-facing app repos')), true);
+});
+
+test('buildManualReviewRows surfaces ambiguous repos first', () => {
+  const rows = buildManualReviewRows([
+    {
+      repo: 'example/clear',
+      prCount: 5,
+      classification: { ambiguous: false, scoreGap: 4, topScore: 6 },
+    },
+    {
+      repo: 'example/ambiguous-low-gap',
+      prCount: 2,
+      classification: { ambiguous: true, scoreGap: 0, topScore: 4 },
+    },
+    {
+      repo: 'example/ambiguous-low-score',
+      prCount: 3,
+      classification: { ambiguous: true, scoreGap: 2, topScore: 1 },
+    },
+  ], 10);
+
+  assert.deepEqual(rows.map(row => row.repo), [
+    'example/ambiguous-low-gap',
+    'example/ambiguous-low-score',
+  ]);
 });
 
 test('renderHtml includes sampled PR and repo classification sections', () => {
@@ -147,6 +176,7 @@ test('renderHtml includes sampled PR and repo classification sections', () => {
       rawHits: 50,
       sampledPrs: 10,
       uniqueRepos: 4,
+      manualReviewCount: 1,
       categoryCounts: [{ label: 'agent infra', repoCount: 2, prCount: 6 }],
     },
     interpretation: ['In this explicit-PR sample, the largest bucket is agent infra.'],
@@ -173,7 +203,24 @@ test('renderHtml includes sampled PR and repo classification sections', () => {
         },
         classification: {
           label: 'agent infra',
+          topScore: 5,
+          scoreGap: 3,
           rationale: ['Matched agent infra terms: agent, platform'],
+        },
+      },
+    ],
+    manualReview: [
+      {
+        repo: 'example/repo',
+        prCount: 3,
+        metadata: {
+          htmlUrl: 'https://github.com/example/repo',
+        },
+        classification: {
+          label: 'agent infra',
+          topScore: 2,
+          scoreGap: 0,
+          rationale: ['Weak mixed evidence across categories; closest match was agent infra.'],
         },
       },
     ],
@@ -183,5 +230,6 @@ test('renderHtml includes sampled PR and repo classification sections', () => {
   assert.match(html, /OpenClaw Explicit PR Sample/);
   assert.match(html, /Sampled PRs/);
   assert.match(html, /Repo Classification Cards/);
+  assert.match(html, /Manual Review Queue/);
   assert.match(html, /example\/repo/);
 });

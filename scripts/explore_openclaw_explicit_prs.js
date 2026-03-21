@@ -6,6 +6,7 @@ const path = require('path');
 
 const DEFAULT_SAMPLE_SIZE = 50;
 const DEFAULT_PER_QUERY = 25;
+const DEFAULT_MANUAL_REVIEW_LIMIT = 20;
 const DEFAULT_OUT_JSON = 'output/openclaw-explicit-pr-sample.json';
 const DEFAULT_OUT_HTML = 'output/openclaw-explicit-pr-sample.html';
 
@@ -64,6 +65,8 @@ function usage() {
     'Options:',
     `  --sample-size <n>    Number of unique PRs to classify (default: ${DEFAULT_SAMPLE_SIZE})`,
     `  --per-query <n>      Search results to fetch per explicit query (default: ${DEFAULT_PER_QUERY})`,
+    `  --manual-review-limit <n>  Ambiguous repos to highlight (default: ${DEFAULT_MANUAL_REVIEW_LIMIT})`,
+    '  --exclude-repos <a,b>  Comma-separated repos to exclude from the sampled PR set',
     `  --out-json <path>    JSON output path (default: ${DEFAULT_OUT_JSON})`,
     `  --out-html <path>    HTML output path (default: ${DEFAULT_OUT_HTML})`,
   ].join('\n');
@@ -75,6 +78,8 @@ function parseArgs(argv) {
     help: false,
     sampleSize: DEFAULT_SAMPLE_SIZE,
     perQuery: DEFAULT_PER_QUERY,
+    manualReviewLimit: DEFAULT_MANUAL_REVIEW_LIMIT,
+    excludeRepos: [],
     outJson: DEFAULT_OUT_JSON,
     outHtml: DEFAULT_OUT_HTML,
   };
@@ -95,6 +100,18 @@ function parseArgs(argv) {
 
     if (arg === '--per-query') {
       parsed.perQuery = Math.max(1, Math.min(100, parseInt(args[index + 1], 10)));
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--manual-review-limit') {
+      parsed.manualReviewLimit = Math.max(1, Math.min(50, parseInt(args[index + 1], 10)));
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--exclude-repos') {
+      parsed.excludeRepos = cleanText(args[index + 1]).split(',').map(item => cleanText(item)).filter(Boolean);
       index += 1;
       continue;
     }
@@ -371,6 +388,9 @@ function classifyRepo(repoContext) {
     });
 
   let label = ranked.length ? ranked[0].label : 'unclear';
+  const topScore = ranked[0]?.score || 0;
+  const secondScore = ranked[1]?.score || 0;
+  const scoreGap = topScore - secondScore;
 
   if (
     label === 'plugin/add-on' &&
@@ -379,6 +399,8 @@ function classifyRepo(repoContext) {
   ) {
     label = 'agent infra';
   }
+
+  const ambiguous = label === 'unclear' || topScore <= 3 || scoreGap <= 1;
 
   const rationale = [];
   if (label === 'plugin/add-on' && pluginEvidence.matches.length) {
@@ -399,6 +421,10 @@ function classifyRepo(repoContext) {
 
   return {
     label,
+    topScore,
+    secondScore,
+    scoreGap,
+    ambiguous,
     evidence,
     rationale,
   };
@@ -443,12 +469,14 @@ function buildTopRepos(prRows) {
 
 function buildSummary(queryResults, prRows, repoRows) {
   const categoryCounts = buildRepoCounts(repoRows);
+  const manualReviewCount = repoRows.filter(row => row.classification.ambiguous).length;
 
   return {
     queryCount: queryResults.length,
     rawHits: queryResults.reduce((sum, query) => sum + query.totalCount, 0),
     sampledPrs: prRows.length,
     uniqueRepos: repoRows.length,
+    manualReviewCount,
     categoryCounts,
     topRepos: buildTopRepos(prRows),
   };
@@ -477,11 +505,30 @@ function buildInterpretation(summary) {
     notes.push('A meaningful plugin/add-on bucket suggests a lot of visible OpenClaw activity happens through integrations, skills, and ecosystem packages.');
   }
 
+  if (summary.manualReviewCount > 0) {
+    notes.push(`${formatCount(summary.manualReviewCount)} repos in the sample still look ambiguous enough to justify manual review.`);
+  }
+
   if (!notes.length) {
     notes.push('The sample did not surface enough stable structure to interpret confidently.');
   }
 
   return notes;
+}
+
+function buildManualReviewRows(repoRows, limit) {
+  return repoRows
+    .filter(row => row.classification.ambiguous)
+    .sort((left, right) => {
+      if (left.classification.scoreGap !== right.classification.scoreGap) {
+        return left.classification.scoreGap - right.classification.scoreGap;
+      }
+      if (left.classification.topScore !== right.classification.topScore) {
+        return left.classification.topScore - right.classification.topScore;
+      }
+      return right.prCount - left.prCount;
+    })
+    .slice(0, limit);
 }
 
 function renderHtml(report) {
@@ -490,6 +537,7 @@ function renderHtml(report) {
     ['Raw hits', formatCount(report.summary.rawHits)],
     ['Sampled PRs', formatCount(report.summary.sampledPrs)],
     ['Unique repos', formatCount(report.summary.uniqueRepos)],
+    ['Manual review repos', formatCount(report.summary.manualReviewCount)],
   ];
 
   const categoryRows = report.summary.categoryCounts.map(row => `
@@ -525,6 +573,17 @@ function renderHtml(report) {
         ${row.classification.rationale.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
       </ul>
     </article>
+  `).join('');
+
+  const manualReviewRows = report.manualReview.map(row => `
+    <tr>
+      <td><a href="${escapeHtml(row.metadata.htmlUrl)}">${escapeHtml(row.repo)}</a></td>
+      <td>${escapeHtml(row.classification.label)}</td>
+      <td>${escapeHtml(String(row.classification.topScore))}</td>
+      <td>${escapeHtml(String(row.classification.scoreGap))}</td>
+      <td>${formatCount(row.prCount)}</td>
+      <td>${escapeHtml(row.classification.rationale[0] || '')}</td>
+    </tr>
   `).join('');
 
   return `<!DOCTYPE html>
@@ -726,6 +785,24 @@ function renderHtml(report) {
       <h2>Repo Classification Cards</h2>
       <div class="repo-grid">${repoCards}</div>
     </section>
+
+    <section class="panel" style="margin-top:18px;">
+      <h2>Manual Review Queue</h2>
+      <p class="muted">These repos have low-confidence or mixed keyword evidence and are the best candidates for a quick human pass.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Repo</th>
+            <th>Current bucket</th>
+            <th>Top score</th>
+            <th>Score gap</th>
+            <th>PRs</th>
+            <th>Why review</th>
+          </tr>
+        </thead>
+        <tbody>${manualReviewRows || '<tr><td colspan="6">No manual-review candidates in this sample.</td></tr>'}</tbody>
+      </table>
+    </section>
   </main>
 </body>
 </html>`;
@@ -735,6 +812,8 @@ async function buildReport(options) {
   const token = cleanText(options.token || process.env.GITHUB_TOKEN);
   const perQuery = options.perQuery || DEFAULT_PER_QUERY;
   const sampleSize = options.sampleSize || DEFAULT_SAMPLE_SIZE;
+  const manualReviewLimit = options.manualReviewLimit || DEFAULT_MANUAL_REVIEW_LIMIT;
+  const excludedRepos = new Set((options.excludeRepos || []).map(item => cleanText(item)).filter(Boolean));
 
   const rawQueryResults = [];
   for (const spec of EXPLICIT_PR_QUERIES) {
@@ -746,7 +825,9 @@ async function buildReport(options) {
     });
   }
 
-  const prRows = dedupePullRequests(rawQueryResults, sampleSize);
+  const prRows = dedupePullRequests(rawQueryResults, sampleSize + excludedRepos.size + 20)
+    .filter(row => !excludedRepos.has(row.repo))
+    .slice(0, sampleSize);
   const uniqueRepos = Array.from(new Set(prRows.map(row => row.repo).filter(Boolean)));
 
   const repoRows = [];
@@ -774,16 +855,20 @@ async function buildReport(options) {
   });
 
   const summary = buildSummary(rawQueryResults, prRows, repoRows);
+  const manualReview = buildManualReviewRows(repoRows, manualReviewLimit);
 
   return {
     generatedAt: new Date().toISOString(),
     sampleSize,
     perQuery,
+    manualReviewLimit,
+    excludeRepos: Array.from(excludedRepos),
     summary,
     interpretation: buildInterpretation(summary),
     queries: rawQueryResults.map(row => ({ id: row.id, label: row.label, query: row.query, totalCount: row.totalCount })),
     prs: prRows,
     repos: repoRows.sort((left, right) => right.prCount - left.prCount),
+    manualReview,
   };
 }
 
@@ -819,6 +904,7 @@ module.exports = {
   EXPLICIT_PR_QUERIES,
   buildInterpretation,
   buildReport,
+  buildManualReviewRows,
   buildSummary,
   classifyRepo,
   dedupePullRequests,

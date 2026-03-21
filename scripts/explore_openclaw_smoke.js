@@ -99,6 +99,33 @@ const DEFAULT_QUERY_SPECS = [
     query: '"generated with openclaw" type:pr is:public',
     why: 'Best quick smoke-test for direct PR-level OpenClaw attribution.',
   },
+  {
+    id: 'commit-mentions',
+    label: 'Commits mentioning OpenClaw',
+    category: 'commits',
+    strength: 'medium',
+    endpoint: 'commits',
+    query: 'openclaw',
+    why: 'Broad commit-message footprint that can capture pushed code or operational commits tied to OpenClaw.',
+  },
+  {
+    id: 'commit-explicit-generated',
+    label: 'Commits explicitly saying generated with OpenClaw',
+    category: 'commits',
+    strength: 'strong',
+    endpoint: 'commits',
+    query: '"generated with openclaw"',
+    why: 'High-signal commit-level evidence that OpenClaw-authored changes were pushed to GitHub.',
+  },
+  {
+    id: 'commit-coauthored-openclaw',
+    label: 'Commits with Co-Authored-By OpenClaw',
+    category: 'commits',
+    strength: 'strong',
+    endpoint: 'commits',
+    query: '"Co-Authored-By: OpenClaw"',
+    why: 'High-signal co-authorship breadcrumb if OpenClaw is recorded directly in commit metadata.',
+  },
 ];
 
 function usage() {
@@ -178,14 +205,14 @@ function formatDate(value) {
   return cleanText(value).slice(0, 10) || '—';
 }
 
-function requestJson(apiPath, token) {
+function requestJson(apiPath, token, accept) {
   return new Promise((resolve, reject) => {
     const options = {
       hostname: 'api.github.com',
       path: apiPath,
       headers: {
         'User-Agent': 'gh-pr-map-openclaw-smoke',
-        'Accept': 'application/vnd.github.text-match+json',
+        'Accept': accept || 'application/vnd.github.text-match+json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     };
@@ -224,7 +251,10 @@ async function ghSearch(spec, perQuery, token) {
   const apiPath = spec.endpoint === 'repositories'
     ? `${basePath}&sort=updated&order=desc`
     : `${basePath}&sort=updated&order=desc`;
-  return requestJson(apiPath, token);
+  const accept = spec.endpoint === 'commits'
+    ? 'application/vnd.github.cloak-preview+json'
+    : 'application/vnd.github.text-match+json';
+  return requestJson(apiPath, token, accept);
 }
 
 function extractRepoFromApiUrl(apiUrl) {
@@ -252,6 +282,17 @@ function normalizeSearchItem(spec, item) {
       subtitle: cleanText(item.user && item.user.login),
       updatedAt: cleanText(item.updated_at),
       metric: item.pull_request ? 'pull request' : 'issue',
+    };
+  }
+
+  if (spec.endpoint === 'commits') {
+    return {
+      title: cleanText(item.commit && item.commit.message).split('\n')[0] || cleanText(item.sha) || 'commit result',
+      url: cleanText(item.html_url),
+      repo: cleanText(item.repository && item.repository.full_name),
+      subtitle: cleanText(item.author && item.author.login) || cleanText(item.commit && item.commit.author && item.commit.author.name),
+      updatedAt: cleanText(item.commit && item.commit.author && item.commit.author.date),
+      metric: cleanText(item.sha).slice(0, 12),
     };
   }
 
@@ -303,6 +344,10 @@ function buildSummary(results) {
     row => row.id === 'readme-generated-with-openclaw' || row.id === 'readme-built-with-openclaw'
   );
   const explicitPrSignals = sumCounts(results, row => row.id === 'pr-explicit-generated');
+  const explicitCommitSignals = sumCounts(
+    results,
+    row => row.id === 'commit-explicit-generated' || row.id === 'commit-coauthored-openclaw'
+  );
   const integrationSignals = sumCounts(
     results,
     row => ['agents-openclaw', 'claude-md-openclaw', 'workflows-openclaw', 'dot-openclaw'].includes(row.id)
@@ -312,6 +357,7 @@ function buildSummary(results) {
     row => ['repo-mentions', 'readme-openclaw'].includes(row.id)
   );
   const broadPrSignals = sumCounts(results, row => row.id === 'pr-mentions');
+  const broadCommitSignals = sumCounts(results, row => row.id === 'commit-mentions');
 
   return {
     queryCount: results.length,
@@ -319,16 +365,18 @@ function buildSummary(results) {
     countsByStrength,
     explicitProjectSignals,
     explicitPrSignals,
+    explicitCommitSignals,
     integrationSignals,
     broadRepoSignals,
     broadPrSignals,
+    broadCommitSignals,
   };
 }
 
 function buildInterpretation(summary) {
   const notes = [];
 
-  if (summary.explicitProjectSignals > 0 || summary.explicitPrSignals > 0) {
+  if (summary.explicitProjectSignals > 0 || summary.explicitPrSignals > 0 || summary.explicitCommitSignals > 0) {
     notes.push('There is direct public evidence that at least some GitHub artifacts explicitly claim OpenClaw generation or OpenClaw-authored submissions.');
   } else {
     notes.push('Explicit OpenClaw generation claims look sparse, so public repo output may be under-labeled even if OpenClaw is being used heavily.');
@@ -346,6 +394,12 @@ function buildInterpretation(summary) {
     notes.push('PR mentions likely mix together true OpenClaw-authored changes with discussion about OpenClaw itself, so broad PR counts should be treated as directional rather than as authorship counts.');
   }
 
+  if (summary.explicitCommitSignals > 0) {
+    notes.push('Commit-level explicit signals suggest at least some OpenClaw usage survives beyond PR text and is being written directly into pushed commit history.');
+  } else if (summary.broadCommitSignals > 0) {
+    notes.push('Commit mentions exist, but without explicit attribution they are best treated as weak directional evidence rather than direct authorship proof.');
+  }
+
   if (!notes.length) {
     notes.push('This smoke test did not surface enough signal to draw a strong conclusion.');
   }
@@ -358,9 +412,11 @@ function renderHtml(report) {
     ['Queries', formatCount(report.summary.queryCount)],
     ['Broad repo signals', formatCount(report.summary.broadRepoSignals)],
     ['Broad PR signals', formatCount(report.summary.broadPrSignals)],
+    ['Broad commit signals', formatCount(report.summary.broadCommitSignals)],
     ['Integration signals', formatCount(report.summary.integrationSignals)],
     ['Explicit project signals', formatCount(report.summary.explicitProjectSignals)],
     ['Explicit PR signals', formatCount(report.summary.explicitPrSignals)],
+    ['Explicit commit signals', formatCount(report.summary.explicitCommitSignals)],
   ];
 
   const queryRows = report.results.map(result => `

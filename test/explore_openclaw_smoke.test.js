@@ -15,6 +15,8 @@ test('default OpenClaw smoke queries cover repos, PRs, and config files', () => 
 
   assert.equal(ids.includes('repo-mentions'), true);
   assert.equal(ids.includes('pr-explicit-generated'), true);
+  assert.equal(ids.includes('commit-explicit-generated'), true);
+  assert.equal(ids.includes('commit-coauthored-openclaw'), true);
   assert.equal(ids.includes('agents-openclaw'), true);
   assert.equal(ids.includes('claude-md-openclaw'), true);
 });
@@ -31,14 +33,19 @@ test('summary separates explicit, integration, and broad signals', () => {
     { id: 'dot-openclaw', category: 'configs', strength: 'strong', totalCount: 2 },
     { id: 'pr-mentions', category: 'pull_requests', strength: 'medium', totalCount: 5 },
     { id: 'pr-explicit-generated', category: 'pull_requests', strength: 'strong', totalCount: 1 },
+    { id: 'commit-mentions', category: 'commits', strength: 'medium', totalCount: 8 },
+    { id: 'commit-explicit-generated', category: 'commits', strength: 'strong', totalCount: 2 },
+    { id: 'commit-coauthored-openclaw', category: 'commits', strength: 'strong', totalCount: 1 },
   ]);
 
-  assert.equal(summary.queryCount, 10);
+  assert.equal(summary.queryCount, 13);
   assert.equal(summary.explicitProjectSignals, 3);
   assert.equal(summary.explicitPrSignals, 1);
+  assert.equal(summary.explicitCommitSignals, 3);
   assert.equal(summary.integrationSignals, 10);
   assert.equal(summary.broadRepoSignals, 19);
   assert.equal(summary.broadPrSignals, 5);
+  assert.equal(summary.broadCommitSignals, 8);
   assert.equal(summary.countsByCategory.configs, 10);
 });
 
@@ -46,14 +53,17 @@ test('interpretation calls out sparse explicit attribution separately from integ
   const notes = buildInterpretation({
     explicitProjectSignals: 0,
     explicitPrSignals: 0,
+    explicitCommitSignals: 0,
     integrationSignals: 9,
     broadRepoSignals: 20,
     broadPrSignals: 11,
+    broadCommitSignals: 7,
   });
 
   assert.equal(notes.some(note => note.includes('Explicit OpenClaw generation claims look sparse')), true);
   assert.equal(notes.some(note => note.includes('config and workflow-style files')), true);
   assert.equal(notes.some(note => note.includes('Repo-level OpenClaw mentions appear broader')), true);
+  assert.equal(notes.some(note => note.includes('Commit mentions exist')), true);
 });
 
 test('normalizeSearchItem extracts repo names from issue and code search results', () => {
@@ -88,12 +98,14 @@ test('renderHtml includes smoke-test framing and query labels', () => {
   const html = renderHtml({
     generatedAt: '2026-03-20T00:00:00Z',
     summary: {
-      queryCount: 10,
+      queryCount: 13,
       broadRepoSignals: 12,
       broadPrSignals: 5,
+      broadCommitSignals: 7,
       integrationSignals: 8,
       explicitProjectSignals: 1,
       explicitPrSignals: 0,
+      explicitCommitSignals: 2,
     },
     interpretation: ['OpenClaw appears in config and workflow-style files.'],
     results: [
@@ -121,5 +133,6 @@ test('renderHtml includes smoke-test framing and query labels', () => {
   assert.match(html, /OpenClaw GitHub Smoke Test/);
   assert.match(html, /Quick Read/);
   assert.match(html, /Repo mentions of OpenClaw/);
+  assert.match(html, /Explicit commit signals/);
   assert.match(html, /openclaw\/openclaw/);
 });
