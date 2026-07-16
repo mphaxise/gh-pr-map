@@ -141,4 +141,11 @@ See [BRAINSTORM.md](BRAINSTORM.md) for potential next features.
 
 - [docs/experiment-variation-public-ai-authorship-prior-art.md](docs/experiment-variation-public-ai-authorship-prior-art.md)
 - [docs/experiment-variation-vibe-coding-landscape.md](docs/experiment-variation-vibe-coding-landscape.md)
+- [docs/experiment-variation-awesome-ai-agents-2026-notes.md](docs/experiment-variation-awesome-ai-agents-2026-notes.md)
 - [docs/experiment-variation-openclaw-window-manual-review.md](docs/experiment-variation-openclaw-window-manual-review.md)
+- [docs/experiment-variation-openclaw-two-bucket-landscape.md](docs/experiment-variation-openclaw-two-bucket-landscape.md)
+- [docs/experiment-variation-openclaw-public-narrative.md](docs/experiment-variation-openclaw-public-narrative.md)
+
+## Article Drafts
+
+- [docs/linkedin-article-ai-repo-signals.md](docs/linkedin-article-ai-repo-signals.md)

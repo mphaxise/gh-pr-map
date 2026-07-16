@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420" role="img" aria-labelledby="title desc">
+  <title id="title">Repo-level authorship labels in the pilot cohort</title>
+  <desc id="desc">Horizontal bar chart showing AI-explicit 2, AI-first 1, mixed 1, human-led 1.</desc>
+  <rect width="900" height="420" fill="#fffaf2"/>
+  <text x="40" y="52" font-family="Georgia, serif" font-size="28" font-weight="700" fill="#1f2937">Pilot Repo Cohort: All Four Labels Appeared</text>
+  <text x="40" y="82" font-family="Arial, sans-serif" font-size="16" fill="#6b7280">5 repos sampled, 128 PRs, 248 commits. The point was not scale. It was to test whether a repo-level label model felt real.</text>
+  <line x1="210" y1="130" x2="210" y2="340" stroke="#cbd5e1" stroke-width="1"/>
+  <line x1="210" y1="340" x2="820" y2="340" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="205" y="362" font-family="Arial, sans-serif" font-size="13" fill="#64748b">0</text>
+  <text x="500" y="362" font-family="Arial, sans-serif" font-size="13" fill="#64748b">1</text>
+  <text x="790" y="362" font-family="Arial, sans-serif" font-size="13" fill="#64748b">2</text>
+  <text x="65" y="160" font-family="Arial, sans-serif" font-size="18" fill="#111827">AI-explicit</text>
+  <rect x="210" y="138" width="590" height="32" rx="8" fill="#0f766e"/>
+  <text x="812" y="160" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#0f172a">2</text>
+  <text x="65" y="210" font-family="Arial, sans-serif" font-size="18" fill="#111827">AI-first</text>
+  <rect x="210" y="188" width="295" height="32" rx="8" fill="#2563eb"/>
+  <text x="517" y="210" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#0f172a">1</text>
+  <text x="65" y="260" font-family="Arial, sans-serif" font-size="18" fill="#111827">Mixed</text>
+  <rect x="210" y="238" width="295" height="32" rx="8" fill="#d97706"/>
+  <text x="517" y="260" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#0f172a">1</text>
+  <text x="65" y="310" font-family="Arial, sans-serif" font-size="18" fill="#111827">Human-led</text>
+  <rect x="210" y="288" width="295" height="32" rx="8" fill="#475569"/>
+  <text x="517" y="310" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#0f172a">1</text>
+</svg>

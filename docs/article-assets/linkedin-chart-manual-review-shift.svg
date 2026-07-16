@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="470" viewBox="0 0 900 470" role="img" aria-labelledby="title desc">
+  <title id="title">Manual review changed the OpenClaw repo mix</title>
+  <desc id="desc">Grouped horizontal bars showing heuristic vs manual review counts by repo category.</desc>
+  <rect width="900" height="470" fill="#fffdf7"/>
+  <text x="40" y="52" font-family="Georgia, serif" font-size="28" font-weight="700" fill="#1f2937">Manual Review Mattered More Than I Expected</text>
+  <text x="40" y="82" font-family="Arial, sans-serif" font-size="16" fill="#6b7280">The first heuristic badly over-called agent infrastructure and under-counted app repos and add-ons.</text>
+  <rect x="40" y="105" width="16" height="16" rx="3" fill="#c2410c"/>
+  <text x="64" y="118" font-family="Arial, sans-serif" font-size="14" fill="#374151">Heuristic</text>
+  <rect x="160" y="105" width="16" height="16" rx="3" fill="#0f766e"/>
+  <text x="184" y="118" font-family="Arial, sans-serif" font-size="14" fill="#374151">After manual review</text>
+  <line x1="240" y1="140" x2="240" y2="395" stroke="#cbd5e1" stroke-width="1"/>
+  <line x1="240" y1="395" x2="835" y2="395" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="235" y="417" font-family="Arial, sans-serif" font-size="13" fill="#64748b">0</text>
+  <text x="465" y="417" font-family="Arial, sans-serif" font-size="13" fill="#64748b">20</text>
+  <text x="695" y="417" font-family="Arial, sans-serif" font-size="13" fill="#64748b">40</text>
+  <text x="40" y="175" font-family="Arial, sans-serif" font-size="18" fill="#111827">Agent infra</text>
+  <rect x="240" y="152" width="564" height="20" rx="8" fill="#c2410c"/>
+  <rect x="240" y="176" width="336" height="20" rx="8" fill="#0f766e"/>
+  <text x="816" y="168" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#0f172a">47</text>
+  <text x="588" y="192" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#0f172a">28</text>
+  <text x="40" y="245" font-family="Arial, sans-serif" font-size="18" fill="#111827">Plugin / add-on</text>
+  <rect x="240" y="222" width="60" height="20" rx="8" fill="#c2410c"/>
+  <rect x="240" y="246" width="144" height="20" rx="8" fill="#0f766e"/>
+  <text x="312" y="238" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#0f172a">5</text>
+  <text x="396" y="262" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#0f172a">12</text>
+  <text x="40" y="315" font-family="Arial, sans-serif" font-size="18" fill="#111827">App repo</text>
+  <rect x="240" y="292" width="60" height="20" rx="8" fill="#c2410c"/>
+  <rect x="240" y="316" width="156" height="20" rx="8" fill="#0f766e"/>
+  <text x="312" y="308" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#0f172a">5</text>
+  <text x="408" y="332" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#0f172a">13</text>
+  <text x="40" y="385" font-family="Arial, sans-serif" font-size="18" fill="#111827">Unclear</text>
+  <rect x="240" y="362" width="0" height="20" rx="8" fill="#c2410c"/>
+  <rect x="240" y="386" width="48" height="20" rx="8" fill="#0f766e"/>
+  <text x="300" y="402" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#0f172a">4</text>
+</svg>

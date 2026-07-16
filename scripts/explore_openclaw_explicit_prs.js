@@ -58,6 +58,51 @@ const CATEGORY_RULES = [
   },
 ];
 
+const PRODUCT_TOOL_PATTERNS = [
+  /\b(app|application|website|web app|mobile app|ios app|android app|dashboard|site|product|chat app|game|studio|playground)\b/i,
+  /\b(scanner|middleware|formatter|linter|toolchain|compiler|editor)\b/i,
+  /\b(vulnerability scanner|service identification|fingerprinting|developer tool|scientific software|molecular dynamics)\b/i,
+];
+
+const DIRECT_OPENCLAW_PATTERNS = [
+  /\bgenerated with openclaw\b/i,
+  /\bauthored by openclaw\b/i,
+  /\bco-authored-by:\s*openclaw\b/i,
+  /\bgenerated with the assistance of an ai coding agent\s*\(openclaw\)\b/i,
+  /\bgenerated with\s+\[?openclaw\]?(?:\(|\b)/i,
+  /\b🐙\s*generated with\s+\[?openclaw\]?(?:\(|\b)/i,
+];
+
+const PROVENANCE_CLAIM_PATTERNS = [
+  /\bbuilt with openclaw\b/i,
+  /\bcreated with openclaw\b/i,
+];
+
+const INTEGRATION_ONLY_PATTERNS = [
+  /\bopenclaw plugin\b/i,
+  /\bopenclaw bridge\b/i,
+  /\bopenclaw compatibility\b/i,
+  /\bcompatible with the openclaw ecosystem\b/i,
+  /\bopenclaw ecosystem\b/i,
+  /\bopenclaw remote installer\b/i,
+  /\bopenclaw integration\b/i,
+];
+
+const OTHER_AGENT_PATTERNS = [
+  /\bgenerated with\s+\[claude code\]\b/i,
+  /\bgenerated with claude code\b/i,
+  /\bgenerated with\s+\[claude\]\b/i,
+  /\brelease please\b/i,
+  /\bgenerated with \[release please\]\b/i,
+  /\bgenerated with \[codex\]\b/i,
+  /\bgenerated with codex\b/i,
+  /\bco-authored-by:\s*claude\b/i,
+  /\bco-authored-by:\s*codex\b/i,
+];
+
+const ACTIVE_REPO_MAX_AGE_DAYS = 120;
+const NEW_REPO_MAX_AGE_DAYS = 180;
+
 function usage() {
   return [
     'Usage: node scripts/explore_openclaw_explicit_prs.js [options]',
@@ -200,6 +245,17 @@ function formatCount(value) {
 
 function formatDate(value) {
   return cleanText(value).slice(0, 10) || '—';
+}
+
+function diffDays(later, earlier) {
+  const laterTime = new Date(later).getTime();
+  const earlierTime = new Date(earlier).getTime();
+
+  if (Number.isNaN(laterTime) || Number.isNaN(earlierTime)) {
+    return null;
+  }
+
+  return Math.floor((laterTime - earlierTime) / (24 * 60 * 60 * 1000));
 }
 
 function encodePathSegment(value) {
@@ -360,6 +416,7 @@ async function fetchRepoMetadata(repo, token) {
   return {
     repo,
     htmlUrl: cleanText(metadata.html_url),
+    createdAt: cleanText(metadata.created_at),
     description: cleanText(metadata.description),
     homepage: cleanText(metadata.homepage),
     language: cleanText(metadata.language),
@@ -473,6 +530,159 @@ function classifyRepo(repoContext) {
   };
 }
 
+function classifyPrAttribution(prRow) {
+  const text = [cleanText(prRow.title), cleanText(prRow.body)].filter(Boolean).join('\n');
+  const matchedQueries = Array.isArray(prRow.matchedQueries) ? prRow.matchedQueries : [];
+
+  const directMatches = gatherCategoryEvidence(text, DIRECT_OPENCLAW_PATTERNS);
+  const provenanceMatches = gatherCategoryEvidence(text, PROVENANCE_CLAIM_PATTERNS);
+  const integrationMatches = gatherCategoryEvidence(text, INTEGRATION_ONLY_PATTERNS);
+  const otherAgentMatches = gatherCategoryEvidence(text, OTHER_AGENT_PATTERNS);
+  const mentionsOpenClaw = /\bopenclaw\b/i.test(text) || matchedQueries.some(query => /openclaw/i.test(query));
+
+  const matchedBuildOrCreateQuery = matchedQueries.some(query => (
+    query === 'Built with OpenClaw' || query === 'Created with OpenClaw'
+  ));
+
+  let label = 'adjacent-hit';
+
+  if (directMatches.length) {
+    label = 'direct-attribution';
+  } else if (provenanceMatches.length) {
+    label = 'provenance-claim';
+  } else if (matchedBuildOrCreateQuery && !otherAgentMatches.length) {
+    label = 'provenance-query-match';
+  } else if (integrationMatches.length) {
+    label = 'integration-only';
+  } else if (mentionsOpenClaw) {
+    label = 'adjacent-hit';
+  } else if (otherAgentMatches.length) {
+    label = 'other-agent';
+  }
+
+  const evidence = [];
+  if (directMatches.length) {
+    evidence.push(`Direct OpenClaw attribution: ${directMatches.slice(0, 2).join(', ')}`);
+  }
+  if (provenanceMatches.length) {
+    evidence.push(`OpenClaw provenance claim: ${provenanceMatches.slice(0, 2).join(', ')}`);
+  }
+  if (!provenanceMatches.length && matchedBuildOrCreateQuery) {
+    evidence.push(`Matched query-only provenance claim: ${matchedQueries.filter(query => query.includes('OpenClaw')).join(', ')}`);
+  }
+  if (integrationMatches.length) {
+    evidence.push(`Integration-only language: ${integrationMatches.slice(0, 2).join(', ')}`);
+  }
+  if (otherAgentMatches.length) {
+    evidence.push(`Other-agent attribution present: ${otherAgentMatches.slice(0, 2).join(', ')}`);
+  }
+  if (!evidence.length && mentionsOpenClaw) {
+    evidence.push('OpenClaw is mentioned, but the sampled PR text does not clearly claim OpenClaw authorship.');
+  }
+
+  return {
+    label,
+    mentionsOpenClaw,
+    directMatches,
+    provenanceMatches,
+    integrationMatches,
+    otherAgentMatches,
+    matchedBuildOrCreateQuery,
+    evidence,
+  };
+}
+
+function classifyProductLandscape(repoRow, repoPrs, now = new Date()) {
+  const surfaceText = [
+    repoRow.repo,
+    repoRow.metadata.description,
+    repoRow.metadata.homepage,
+    repoRow.metadata.topics.join(' '),
+  ].filter(Boolean).join('\n');
+  const combined = [
+    surfaceText,
+    cleanText(repoRow.readme.text).slice(0, 8000),
+  ].filter(Boolean).join('\n');
+
+  const productMatches = gatherCategoryEvidence(combined, PRODUCT_TOOL_PATTERNS);
+  const prSignals = repoPrs.map(classifyPrAttribution);
+  const directCount = prSignals.filter(signal => signal.label === 'direct-attribution').length;
+  const provenanceCount = prSignals.filter(signal => (
+    signal.label === 'provenance-claim' || signal.label === 'provenance-query-match'
+  )).length;
+  const integrationCount = prSignals.filter(signal => signal.label === 'integration-only').length;
+  const adjacencyCount = prSignals.filter(signal => signal.label === 'adjacent-hit').length;
+  const directishCount = directCount + provenanceCount;
+  const openclawCentricSurface = /\bopenclaw\b/i.test(surfaceText);
+  const strongToolEvidence = productMatches.some(match => (
+    /\b(scanner|middleware|formatter|linter|toolchain|compiler|editor|service identification|fingerprinting|scientific software|molecular dynamics)\b/i.test(match)
+  ));
+  const productLike = (
+    repoRow.classification.label === 'app repo' ||
+    (productMatches.length > 0 && !openclawCentricSurface) ||
+    (strongToolEvidence && !openclawCentricSurface) ||
+    (!openclawCentricSurface && repoRow.metadata.stars >= 500 && directishCount > 0 && repoRow.classification.label !== 'plugin/add-on')
+  );
+
+  const repoAgeDays = diffDays(now, repoRow.metadata.createdAt);
+  const pushAgeDays = diffDays(now, repoRow.metadata.pushedAt);
+  const active = pushAgeDays !== null && pushAgeDays <= ACTIVE_REPO_MAX_AGE_DAYS;
+  const established = repoAgeDays !== null && repoAgeDays > NEW_REPO_MAX_AGE_DAYS;
+
+  let label = 'Non-product repo';
+  if (productLike) {
+    if (directCount > 0) {
+      label = (active && established)
+        ? 'OpenClaw-assisted contribution to active product repo'
+        : 'OpenClaw-authored product repo';
+    } else if (provenanceCount > 0) {
+      label = established
+        ? 'OpenClaw integration-only product repo'
+        : 'OpenClaw-authored product repo';
+    } else if (integrationCount > 0) {
+      label = 'OpenClaw integration-only product repo';
+    } else if (adjacencyCount > 0) {
+      label = 'False positive / adjacency hit';
+    } else {
+      label = 'False positive / adjacency hit';
+    }
+  }
+
+  const rationale = [];
+  if (productLike && productMatches.length) {
+    rationale.push(`Product/tool evidence: ${productMatches.slice(0, 4).join(', ')}`);
+  }
+  if (repoAgeDays !== null) {
+    rationale.push(`Repo age: ${repoAgeDays} days`);
+  }
+  if (pushAgeDays !== null) {
+    rationale.push(`Last push recency: ${pushAgeDays} days ago`);
+  }
+  const strongestPrSignal = prSignals.find(signal => signal.evidence.length);
+  if (strongestPrSignal) {
+    rationale.push(strongestPrSignal.evidence[0]);
+  }
+  if (!rationale.length) {
+    rationale.push('No strong product/tool or attribution evidence surfaced from the sampled PR and repo metadata.');
+  }
+
+  return {
+    label,
+    productLike,
+    directCount,
+    provenanceCount,
+    integrationCount,
+    adjacencyCount,
+    active,
+    established,
+    repoAgeDays,
+    pushAgeDays,
+    productMatches,
+    prSignals,
+    rationale,
+  };
+}
+
 function buildRepoCounts(repoRows) {
   const counts = new Map();
 
@@ -484,6 +694,32 @@ function buildRepoCounts(repoRows) {
   }
 
   return Array.from(counts.values()).sort((left, right) => {
+    if (right.prCount !== left.prCount) {
+      return right.prCount - left.prCount;
+    }
+    return left.label.localeCompare(right.label);
+  });
+}
+
+function buildProductLandscapeCounts(repoRows) {
+  const counts = new Map();
+
+  for (const row of repoRows.filter(item => item.productLandscape.productLike)) {
+    const bucket = counts.get(row.productLandscape.label) || {
+      label: row.productLandscape.label,
+      repoCount: 0,
+      prCount: 0,
+    };
+
+    bucket.repoCount += 1;
+    bucket.prCount += row.prCount;
+    counts.set(row.productLandscape.label, bucket);
+  }
+
+  return Array.from(counts.values()).sort((left, right) => {
+    if (right.repoCount !== left.repoCount) {
+      return right.repoCount - left.repoCount;
+    }
     if (right.prCount !== left.prCount) {
       return right.prCount - left.prCount;
     }
@@ -512,7 +748,9 @@ function buildTopRepos(prRows) {
 
 function buildSummary(queryResults, prRows, repoRows) {
   const categoryCounts = buildRepoCounts(repoRows);
+  const productLandscapeCounts = buildProductLandscapeCounts(repoRows);
   const manualReviewCount = repoRows.filter(row => row.classification.ambiguous).length;
+  const productCandidateRepos = repoRows.filter(row => row.productLandscape.productLike).length;
 
   return {
     queryCount: queryResults.length,
@@ -520,7 +758,9 @@ function buildSummary(queryResults, prRows, repoRows) {
     sampledPrs: prRows.length,
     uniqueRepos: repoRows.length,
     manualReviewCount,
+    productCandidateRepos,
     categoryCounts,
+    productLandscapeCounts,
     topRepos: buildTopRepos(prRows),
   };
 }
@@ -536,6 +776,19 @@ function buildInterpretation(summary) {
   const appBucket = summary.categoryCounts.find(item => item.label === 'app repo');
   if (appBucket && appBucket.prCount > 0) {
     notes.push(`There are explicit OpenClaw PRs landing in user-facing app repos, so OpenClaw does appear to participate in app-building, not just tooling.`);
+  }
+
+  const authoredBucket = summary.productLandscapeCounts.find(item => item.label === 'OpenClaw-authored product repo');
+  const assistedBucket = summary.productLandscapeCounts.find(item => item.label === 'OpenClaw-assisted contribution to active product repo');
+  const integrationOnlyBucket = summary.productLandscapeCounts.find(item => item.label === 'OpenClaw integration-only product repo');
+  const adjacencyBucket = summary.productLandscapeCounts.find(item => item.label === 'False positive / adjacency hit');
+
+  if (summary.productCandidateRepos > 0) {
+    notes.push(`Within ${formatCount(summary.productCandidateRepos)} product/tool candidates, ${formatCount(authoredBucket?.repoCount || 0)} look like OpenClaw-authored product repos and ${formatCount(assistedBucket?.repoCount || 0)} look like OpenClaw-assisted contributions into active product repos.`);
+  }
+
+  if ((integrationOnlyBucket?.repoCount || 0) > 0 || (adjacencyBucket?.repoCount || 0) > 0) {
+    notes.push('Product-shaped repos still include integration-only and adjacency hits, so PR phrase matching alone overstates direct OpenClaw authorship.');
   }
 
   const infraBucket = summary.categoryCounts.find(item => item.label === 'agent infra');
@@ -580,10 +833,19 @@ function renderHtml(report) {
     ['Raw hits', formatCount(report.summary.rawHits)],
     ['Sampled PRs', formatCount(report.summary.sampledPrs)],
     ['Unique repos', formatCount(report.summary.uniqueRepos)],
+    ['Product/tool candidates', formatCount(report.summary.productCandidateRepos)],
     ['Manual review repos', formatCount(report.summary.manualReviewCount)],
   ];
 
   const categoryRows = report.summary.categoryCounts.map(row => `
+    <tr>
+      <td>${escapeHtml(row.label)}</td>
+      <td>${formatCount(row.repoCount)}</td>
+      <td>${formatCount(row.prCount)}</td>
+    </tr>
+  `).join('');
+
+  const productLandscapeRows = report.summary.productLandscapeCounts.map(row => `
     <tr>
       <td>${escapeHtml(row.label)}</td>
       <td>${formatCount(row.repoCount)}</td>
@@ -597,6 +859,7 @@ function renderHtml(report) {
       <td>${escapeHtml(row.repo)}</td>
       <td>${escapeHtml(row.authorLogin || 'unknown')}</td>
       <td>${escapeHtml(row.repoCategory)}</td>
+      <td>${escapeHtml(row.productLandscapeLabel || '—')}</td>
       <td>${escapeHtml(row.matchedQueries.join(', '))}</td>
       <td>${escapeHtml(formatDate(row.updatedAt))}</td>
     </tr>
@@ -609,11 +872,15 @@ function renderHtml(report) {
           <h3><a href="${escapeHtml(row.metadata.htmlUrl)}">${escapeHtml(row.repo)}</a></h3>
           <p class="muted">${escapeHtml(row.metadata.description || 'No description')}</p>
         </div>
-        <span class="badge">${escapeHtml(row.classification.label)}</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+          <span class="badge">${escapeHtml(row.classification.label)}</span>
+          ${row.productLandscape.productLike ? `<span class="badge">${escapeHtml(row.productLandscape.label)}</span>` : ''}
+        </div>
       </div>
-      <p class="muted">Sample PRs: ${formatCount(row.prCount)} · Stars: ${formatCount(row.metadata.stars)} · Updated: ${escapeHtml(formatDate(row.metadata.pushedAt))}</p>
+      <p class="muted">Sample PRs: ${formatCount(row.prCount)} · Stars: ${formatCount(row.metadata.stars)} · Created: ${escapeHtml(formatDate(row.metadata.createdAt))} · Updated: ${escapeHtml(formatDate(row.metadata.pushedAt))}</p>
       <ul class="rationale">
         ${row.classification.rationale.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+        ${row.productLandscape.rationale.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
       </ul>
     </article>
   `).join('');
@@ -806,6 +1073,17 @@ function renderHtml(report) {
           </thead>
           <tbody>${categoryRows}</tbody>
         </table>
+        <h2 style="margin-top:22px;">Product Landscape Buckets</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Landscape bucket</th>
+              <th>Repos</th>
+              <th>PRs</th>
+            </tr>
+          </thead>
+          <tbody>${productLandscapeRows || '<tr><td colspan="3">No product/tool candidates in this sample.</td></tr>'}</tbody>
+        </table>
       </article>
       <article class="panel">
         <h2>Sampled PRs</h2>
@@ -816,6 +1094,7 @@ function renderHtml(report) {
               <th>Repo</th>
               <th>Author</th>
               <th>Repo type</th>
+              <th>Landscape bucket</th>
               <th>Matched query</th>
               <th>Updated</th>
             </tr>
@@ -884,13 +1163,21 @@ async function buildReport(options) {
     const metadata = await fetchRepoMetadata(repo, token);
     const readme = await fetchReadme(repo, token);
     const classification = classifyRepo({ repo, metadata, readme });
+    const repoPrs = prRows.filter(row => row.repo === repo);
+    const productLandscape = classifyProductLandscape({
+      repo,
+      metadata,
+      readme,
+      classification,
+    }, repoPrs);
 
     const repoRow = {
       repo,
       metadata,
       readme,
       classification,
-      prCount: prRows.filter(row => row.repo === repo).length,
+      productLandscape,
+      prCount: repoPrs.length,
     };
 
     repoRows.push(repoRow);
@@ -899,6 +1186,7 @@ async function buildReport(options) {
 
   prRows.forEach(row => {
     row.repoCategory = repoMap.get(row.repo)?.classification.label || 'unclear';
+    row.productLandscapeLabel = repoMap.get(row.repo)?.productLandscape.label || 'Non-product repo';
   });
 
   const summary = buildSummary(rawQueryResults, prRows, repoRows);
@@ -949,13 +1237,19 @@ if (require.main === module) {
 
 module.exports = {
   CATEGORY_RULES,
+  DIRECT_OPENCLAW_PATTERNS,
   EXPLICIT_PR_QUERIES,
+  PRODUCT_TOOL_PATTERNS,
   buildInterpretation,
   buildReport,
   buildManualReviewRows,
+  buildProductLandscapeCounts,
   buildSummary,
+  classifyPrAttribution,
+  classifyProductLandscape,
   classifyRepo,
   dedupePullRequests,
+  diffDays,
   extractRepoFromApiUrl,
   normalizeDateWindow,
   renderHtml,

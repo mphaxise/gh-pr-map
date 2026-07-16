@@ -5,9 +5,13 @@ const {
   EXPLICIT_PR_QUERIES,
   buildInterpretation,
   buildManualReviewRows,
+  buildProductLandscapeCounts,
   buildSummary,
+  classifyPrAttribution,
+  classifyProductLandscape,
   classifyRepo,
   dedupePullRequests,
+  diffDays,
   extractRepoFromApiUrl,
   normalizeDateWindow,
   renderHtml,
@@ -123,6 +127,105 @@ test('classifyRepo separates agent infra, plugins, apps, and unclear', () => {
   assert.equal(unclear.ambiguous, true);
 });
 
+test('classifyPrAttribution separates direct attribution, integration-only, and adjacent hits', () => {
+  const direct = classifyPrAttribution({
+    title: 'fix: improve scanner',
+    body: 'This patch tightens the scanner. Generated with [OpenClaw](https://github.com/openclaw/openclaw).',
+    matchedQueries: ['Generated with OpenClaw'],
+  });
+
+  const integrationOnly = classifyPrAttribution({
+    title: 'feat: add OpenClaw bridge integration',
+    body: 'Adds an OpenClaw bridge and remote installer. Generated with [Claude Code](https://claude.com/claude-code)',
+    matchedQueries: ['Generated with OpenClaw'],
+  });
+
+  const adjacency = classifyPrAttribution({
+    title: 'fix: remove OpenClaw probe check',
+    body: 'The OpenClaw probe no longer emits this field. Generated with [Claude Code](https://claude.com/claude-code)',
+    matchedQueries: ['Generated with OpenClaw'],
+  });
+
+  assert.equal(direct.label, 'direct-attribution');
+  assert.equal(integrationOnly.label, 'integration-only');
+  assert.equal(adjacency.label, 'adjacent-hit');
+});
+
+test('classifyProductLandscape distinguishes authored products from assisted active repos', () => {
+  const authored = classifyProductLandscape({
+    repo: 'example/new-product',
+    metadata: {
+      createdAt: '2026-02-01T00:00:00Z',
+      pushedAt: '2026-03-20T00:00:00Z',
+      description: 'Image generation product',
+      homepage: '',
+      topics: [],
+    },
+    readme: {
+      text: 'A product website with image generation.',
+    },
+    classification: {
+      label: 'app repo',
+    },
+  }, [
+    {
+      title: 'feat: ship new image node',
+      body: 'Adds a new image node. Generated with OpenClaw.',
+      matchedQueries: ['Generated with OpenClaw'],
+    },
+  ], '2026-03-21T00:00:00Z');
+
+  const assisted = classifyProductLandscape({
+    repo: 'example/old-tool',
+    metadata: {
+      createdAt: '2024-01-01T00:00:00Z',
+      pushedAt: '2026-03-20T00:00:00Z',
+      description: 'A vulnerability scanner for APIs',
+      homepage: '',
+      topics: [],
+    },
+    readme: {
+      text: 'A scanner and middleware package.',
+    },
+    classification: {
+      label: 'agent infra',
+    },
+  }, [
+    {
+      title: 'fix: improve scanner edge case',
+      body: 'Generated with OpenClaw.',
+      matchedQueries: ['Generated with OpenClaw'],
+    },
+  ], '2026-03-21T00:00:00Z');
+
+  const falsePositive = classifyProductLandscape({
+    repo: 'example/compat-site',
+    metadata: {
+      createdAt: '2026-02-01T00:00:00Z',
+      pushedAt: '2026-03-20T00:00:00Z',
+      description: 'Product showcase site',
+      homepage: '',
+      topics: [],
+    },
+    readme: {
+      text: 'A product site.',
+    },
+    classification: {
+      label: 'app repo',
+    },
+  }, [
+    {
+      title: 'chore: add OpenClaw compatibility copy',
+      body: 'Adds OpenClaw compatibility messaging. Generated with [Claude Code](https://claude.com/claude-code)',
+      matchedQueries: ['Generated with OpenClaw'],
+    },
+  ], '2026-03-21T00:00:00Z');
+
+  assert.equal(authored.label, 'OpenClaw-authored product repo');
+  assert.equal(assisted.label, 'OpenClaw-assisted contribution to active product repo');
+  assert.equal(falsePositive.label, 'OpenClaw integration-only product repo');
+});
+
 test('summary and interpretation describe category mix', () => {
   const summary = buildSummary(
     [
@@ -135,8 +238,16 @@ test('summary and interpretation describe category mix', () => {
       { repo: 'b/repo' },
     ],
     [
-      { classification: { label: 'agent infra' }, prCount: 2 },
-      { classification: { label: 'app repo' }, prCount: 1 },
+      {
+        classification: { label: 'agent infra' },
+        productLandscape: { productLike: true, label: 'OpenClaw-assisted contribution to active product repo' },
+        prCount: 2,
+      },
+      {
+        classification: { label: 'app repo' },
+        productLandscape: { productLike: true, label: 'OpenClaw-authored product repo' },
+        prCount: 1,
+      },
     ]
   );
 
@@ -146,9 +257,11 @@ test('summary and interpretation describe category mix', () => {
   assert.equal(summary.sampledPrs, 3);
   assert.equal(summary.uniqueRepos, 2);
   assert.equal(summary.manualReviewCount, 0);
+  assert.equal(summary.productCandidateRepos, 2);
   assert.equal(summary.categoryCounts[0].label, 'agent infra');
+  assert.equal(summary.productLandscapeCounts[0].label, 'OpenClaw-assisted contribution to active product repo');
   assert.equal(interpretation.some(note => note.includes('largest bucket is agent infra')), true);
-  assert.equal(interpretation.some(note => note.includes('user-facing app repos')), true);
+  assert.equal(interpretation.some(note => note.includes('product/tool candidates')), true);
 });
 
 test('buildManualReviewRows surfaces ambiguous repos first', () => {
@@ -185,8 +298,12 @@ test('renderHtml includes sampled PR and repo classification sections', () => {
       rawHits: 50,
       sampledPrs: 10,
       uniqueRepos: 4,
+      productCandidateRepos: 2,
       manualReviewCount: 1,
       categoryCounts: [{ label: 'agent infra', repoCount: 2, prCount: 6 }],
+      productLandscapeCounts: [
+        { label: 'OpenClaw-assisted contribution to active product repo', repoCount: 1, prCount: 3 },
+      ],
     },
     interpretation: ['In this explicit-PR sample, the largest bucket is agent infra.'],
     prs: [
@@ -196,6 +313,7 @@ test('renderHtml includes sampled PR and repo classification sections', () => {
         repo: 'example/repo',
         authorLogin: 'alice',
         repoCategory: 'agent infra',
+        productLandscapeLabel: 'OpenClaw-assisted contribution to active product repo',
         matchedQueries: ['Generated with OpenClaw'],
         updatedAt: '2026-03-20T00:00:00Z',
       },
@@ -208,6 +326,7 @@ test('renderHtml includes sampled PR and repo classification sections', () => {
           htmlUrl: 'https://github.com/example/repo',
           description: 'Agent platform',
           stars: 10,
+          createdAt: '2024-01-01T00:00:00Z',
           pushedAt: '2026-03-20T00:00:00Z',
         },
         classification: {
@@ -215,6 +334,11 @@ test('renderHtml includes sampled PR and repo classification sections', () => {
           topScore: 5,
           scoreGap: 3,
           rationale: ['Matched agent infra terms: agent, platform'],
+        },
+        productLandscape: {
+          productLike: true,
+          label: 'OpenClaw-assisted contribution to active product repo',
+          rationale: ['Direct OpenClaw attribution: Generated with OpenClaw'],
         },
       },
     ],
@@ -240,6 +364,43 @@ test('renderHtml includes sampled PR and repo classification sections', () => {
   assert.match(html, /Sampled PRs/);
   assert.match(html, /Repo Classification Cards/);
   assert.match(html, /Manual Review Queue/);
+  assert.match(html, /Product Landscape Buckets/);
   assert.match(html, /2025-10-01 to 2026-03-15/);
   assert.match(html, /example\/repo/);
+});
+
+test('buildProductLandscapeCounts tallies only product-like repos', () => {
+  const counts = buildProductLandscapeCounts([
+    {
+      prCount: 2,
+      productLandscape: {
+        productLike: true,
+        label: 'OpenClaw-assisted contribution to active product repo',
+      },
+    },
+    {
+      prCount: 1,
+      productLandscape: {
+        productLike: true,
+        label: 'OpenClaw-authored product repo',
+      },
+    },
+    {
+      prCount: 4,
+      productLandscape: {
+        productLike: false,
+        label: 'Non-product repo',
+      },
+    },
+  ]);
+
+  assert.deepEqual(counts.map(row => row.label), [
+    'OpenClaw-assisted contribution to active product repo',
+    'OpenClaw-authored product repo',
+  ]);
+});
+
+test('diffDays returns whole-day differences and null on invalid dates', () => {
+  assert.equal(diffDays('2026-03-21T00:00:00Z', '2026-03-20T00:00:00Z'), 1);
+  assert.equal(diffDays('bad', '2026-03-20T00:00:00Z'), null);
 });
