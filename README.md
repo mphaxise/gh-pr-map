@@ -1,5 +1,8 @@
 # gh-pr-map
 
+> [!NOTE]
+> **Archived July 15, 2026.** This repository is preserved as a completed experiment and is no longer actively maintained. It contains a working PR-contributor geography prototype plus later exploratory AI-provenance and OpenClaw research; that research was useful investigation, but represented scope drift rather than a single continuing product direction.
+
 > Visualize where GitHub pull request contributors are located with a static geography report and interactive world map.
 
 Given any GitHub repo, this tool fetches PR authors, reads their optional profile location, geocodes it via OpenStreetMap, and renders a self-contained Leaflet HTML report with an interactive map, summary cards, and contributor roster.
@@ -141,4 +144,11 @@ See [BRAINSTORM.md](BRAINSTORM.md) for potential next features.
 
 - [docs/experiment-variation-public-ai-authorship-prior-art.md](docs/experiment-variation-public-ai-authorship-prior-art.md)
 - [docs/experiment-variation-vibe-coding-landscape.md](docs/experiment-variation-vibe-coding-landscape.md)
+- [docs/experiment-variation-awesome-ai-agents-2026-notes.md](docs/experiment-variation-awesome-ai-agents-2026-notes.md)
 - [docs/experiment-variation-openclaw-window-manual-review.md](docs/experiment-variation-openclaw-window-manual-review.md)
+- [docs/experiment-variation-openclaw-two-bucket-landscape.md](docs/experiment-variation-openclaw-two-bucket-landscape.md)
+- [docs/experiment-variation-openclaw-public-narrative.md](docs/experiment-variation-openclaw-public-narrative.md)
+
+## Article Drafts
+
+- [docs/linkedin-article-ai-repo-signals.md](docs/linkedin-article-ai-repo-signals.md)

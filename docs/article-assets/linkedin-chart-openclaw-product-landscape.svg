@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="440" viewBox="0 0 900 440" role="img" aria-labelledby="title desc">
+  <title id="title">OpenClaw product landscape from explicit PR sample</title>
+  <desc id="desc">Horizontal bar chart showing integration-only 13 repos, authored 7 repos, false positive 5 repos, assisted contribution 4 repos.</desc>
+  <rect width="900" height="440" fill="#f7fbff"/>
+  <text x="40" y="52" font-family="Georgia, serif" font-size="28" font-weight="700" fill="#1f2937">OpenClaw's Public GitHub Footprint Was Broader Than "Authored Apps"</text>
+  <text x="40" y="82" font-family="Arial, sans-serif" font-size="16" fill="#6b7280">67 explicit PRs across 58 repos. The largest bucket was integration-only, not clean authored-product evidence.</text>
+  <line x1="280" y1="130" x2="280" y2="360" stroke="#cbd5e1" stroke-width="1"/>
+  <line x1="280" y1="360" x2="830" y2="360" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="275" y="382" font-family="Arial, sans-serif" font-size="13" fill="#64748b">0</text>
+  <text x="490" y="382" font-family="Arial, sans-serif" font-size="13" fill="#64748b">5</text>
+  <text x="700" y="382" font-family="Arial, sans-serif" font-size="13" fill="#64748b">10</text>
+  <text x="800" y="382" font-family="Arial, sans-serif" font-size="13" fill="#64748b">13 repos</text>
+  <text x="40" y="160" font-family="Arial, sans-serif" font-size="18" fill="#111827">Integration-only product repo</text>
+  <rect x="280" y="138" width="520" height="32" rx="8" fill="#0f766e"/>
+  <text x="812" y="160" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#0f172a">13</text>
+  <text x="40" y="215" font-family="Arial, sans-serif" font-size="18" fill="#111827">OpenClaw-authored product repo</text>
+  <rect x="280" y="193" width="280" height="32" rx="8" fill="#2563eb"/>
+  <text x="572" y="215" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#0f172a">7</text>
+  <text x="40" y="270" font-family="Arial, sans-serif" font-size="18" fill="#111827">False positive / adjacency hit</text>
+  <rect x="280" y="248" width="200" height="32" rx="8" fill="#94a3b8"/>
+  <text x="492" y="270" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#0f172a">5</text>
+  <text x="40" y="325" font-family="Arial, sans-serif" font-size="18" fill="#111827">Assisted contribution to active repo</text>
+  <rect x="280" y="303" width="160" height="32" rx="8" fill="#d97706"/>
+  <text x="452" y="325" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#0f172a">4</text>
+</svg>

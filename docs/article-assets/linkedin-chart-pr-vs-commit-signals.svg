@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420" role="img" aria-labelledby="title desc">
+  <title id="title">Explicit OpenClaw signals in PR text versus commit history</title>
+  <desc id="desc">Bar chart comparing 614 explicit PR signals and 4,834 explicit commit signals in the Oct 1 2025 to Mar 15 2026 window.</desc>
+  <rect width="900" height="420" fill="#f8fafc"/>
+  <text x="40" y="52" font-family="Georgia, serif" font-size="28" font-weight="700" fill="#1f2937">Commit History Carried Much More Explicit OpenClaw Attribution Than PR Text</text>
+  <text x="40" y="82" font-family="Arial, sans-serif" font-size="16" fill="#6b7280">Window: 2025-10-01 to 2026-03-15. This was one of the clearest public signals we found.</text>
+  <line x1="120" y1="340" x2="830" y2="340" stroke="#cbd5e1" stroke-width="1"/>
+  <line x1="120" y1="120" x2="120" y2="340" stroke="#cbd5e1" stroke-width="1"/>
+  <rect x="220" y="312" width="180" height="28" rx="8" fill="#d97706"/>
+  <text x="264" y="295" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#92400e">614</text>
+  <text x="258" y="368" font-family="Arial, sans-serif" font-size="18" fill="#111827">Explicit PR signals</text>
+  <rect x="520" y="118" width="180" height="222" rx="8" fill="#0f766e"/>
+  <text x="548" y="102" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#065f46">4,834</text>
+  <text x="536" y="368" font-family="Arial, sans-serif" font-size="18" fill="#111827">Explicit commit signals</text>
+  <text x="730" y="132" font-family="Arial, sans-serif" font-size="16" fill="#475569">7.9x more</text>
+</svg>
